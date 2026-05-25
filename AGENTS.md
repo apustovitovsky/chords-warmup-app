@@ -1,5 +1,10 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# Architecture: FSD Light
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+Use a lightweight Feature-Sliced Design structure for application code.
+
+- Keep `app/` focused on Next.js routing files such as `page.tsx`, `layout.tsx`, and `route.ts`.
+- Place feature-specific UI and behavior in `features/<feature>/`.
+- Keep generated shadcn primitives in `components/ui/` rather than moving them into feature slices.
+- Keep shared utilities and reusable domain logic in `lib/` until a clear feature boundary requires moving them.
+- Name React component files and exports in `PascalCase`; keep Next.js special filenames lowercase.
+- Prefer incremental FSD extraction: do not introduce empty layers, barrel files, or abstractions before they are needed.
