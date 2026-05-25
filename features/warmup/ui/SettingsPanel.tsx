@@ -12,10 +12,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+
 import type {
     GenerateProgressionRequest,
-    MusicKey,
-} from "@/lib/music/generator/types";
+} from "@/lib/generator/progression/types";
+
+import {
+    SUPPORTED_TONICS,
+    type Tonic,
+} from "@/lib/model/harmony/key";
 
 type SettingsPanelProps = {
     initialRequest: GenerateProgressionRequest;
@@ -29,7 +34,7 @@ export function SettingsPanel({
     onGenerate,
 }: SettingsPanelProps) {
     const [seed, setSeed] = useState(initialRequest.seed);
-    const [key, setKey] = useState<MusicKey>(initialRequest.settings.key);
+    const [key, setKey] = useState<Tonic>(initialRequest.settings.key);
     const [lengthBars, setLengthBars] = useState<4 | 8 | 16>(
         initialRequest.settings.lengthBars
     );
@@ -72,19 +77,17 @@ export function SettingsPanel({
                     <Label htmlFor="key">Key</Label>
                     <Select
                         value={key}
-                        onValueChange={(value) => setKey(value as MusicKey)}
+                        onValueChange={(value) => setKey(value as Tonic)}
                     >
                         <SelectTrigger id="key" className="w-full">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="C">C major</SelectItem>
-                            <SelectItem value="D">D major</SelectItem>
-                            <SelectItem value="E">E major</SelectItem>
-                            <SelectItem value="F">F major</SelectItem>
-                            <SelectItem value="G">G major</SelectItem>
-                            <SelectItem value="A">A major</SelectItem>
-                            <SelectItem value="B">B major</SelectItem>
+                            {SUPPORTED_TONICS.map((tonic) => (
+                                <SelectItem key={tonic} value={tonic}>
+                                    {tonic}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>

@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { MODES, SUPPORTED_TONICS } from "@/lib/model/harmony/key";
 
 export const GenerationSettingsSchema = z.object({
-    key: z.enum(["C", "D", "E", "F", "G", "A", "B"]),
-    mode: z.enum(["major", "minor"]),
+    key: z.enum(SUPPORTED_TONICS),
+    mode: z.enum(MODES),
     style: z.enum(["pop", "jazz", "neoSoul", "cinematic"]),
     difficulty: z.union([
         z.literal(1),

@@ -1,41 +1,38 @@
 import { SeededRandom } from "@/lib/random/seededRandom";
+
 import type {
-    ChordEventDto,
-    ChordRole,
     GeneratedProgression,
     GenerationSettings,
     GeneratorVersion,
-    MusicKey,
 } from "./types";
 
-type MajorDegree = "I" | "IV" | "V" | "vi";
+import { getMajorTriad } from "@/lib/model/harmony/majorKeyTheory";
+import type { Tonic } from "@/lib/model/harmony/key";
+import type {
+    ChordEventDto,
+    ChordRole,
+    MajorFunctionalDegree,
+} from "@/lib/model/harmony/types";
 
-const majorTriads: Record<MusicKey, Record<MajorDegree, string>> = {
-    C: { I: "C", IV: "F", V: "G", vi: "Am" },
-    D: { I: "D", IV: "G", V: "A", vi: "Bm" },
-    E: { I: "E", IV: "A", V: "B", vi: "C#m" },
-    F: { I: "F", IV: "Bb", V: "C", vi: "Dm" },
-    G: { I: "G", IV: "C", V: "D", vi: "Em" },
-    A: { I: "A", IV: "D", V: "E", vi: "F#m" },
-    B: { I: "B", IV: "E", V: "F#", vi: "G#m" },
-};
-
-const majorPatterns: MajorDegree[][] = [
+const majorPatterns: MajorFunctionalDegree[][] = [
     ["I", "V", "vi", "IV"],
     ["I", "vi", "IV", "V"],
     ["vi", "IV", "I", "V"],
 ];
 
-const degreeRoles: Record<MajorDegree, ChordRole> = {
+const degreeRoles: Record<MajorFunctionalDegree, ChordRole> = {
     I: "tonic",
     IV: "predominant",
     V: "dominant",
     vi: "tonic",
 };
 
-function createChord(key: MusicKey, degree: MajorDegree): ChordEventDto {
+function createChord(
+    tonic: Tonic,
+    degree: MajorFunctionalDegree
+): ChordEventDto {
     return {
-        symbol: majorTriads[key][degree],
+        symbol: getMajorTriad(tonic, degree),
         roman: degree,
         durationBeats: 4,
         role: degreeRoles[degree],

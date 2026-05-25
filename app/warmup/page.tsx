@@ -1,6 +1,6 @@
 import { defaultWarmupRequest } from "@/features/warmup/model/defaultRequest";
 import { WarmupWorkspace } from "@/features/warmup/ui/WarmupWorkspace";
-import { generateProgression } from "@/lib/music/generator/generateProgression";
+import { generateProgression } from "@/lib/generator/progression/generateProgression";
 
 const progression = generateProgression(
     defaultWarmupRequest.settings,

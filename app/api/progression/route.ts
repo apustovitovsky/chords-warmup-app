@@ -1,5 +1,5 @@
 import { GenerateProgressionRequestSchema } from "@/lib/api/progressionSchemas";
-import { generateProgression } from "@/lib/music/generator/generateProgression";
+import { generateProgression } from "@/lib/generator/progression/generateProgression";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -8,7 +8,7 @@ import { SettingsPanel } from "@/features/warmup/ui/SettingsPanel";
 import type {
     GeneratedProgression,
     GenerateProgressionRequest,
-} from "@/lib/music/generator/types";
+} from "@/lib/generator/progression/types";
 
 type WarmupWorkspaceProps = {
     progression: GeneratedProgression;

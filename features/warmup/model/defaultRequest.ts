@@ -1,4 +1,4 @@
-import type { GenerateProgressionRequest } from "@/lib/music/generator/types";
+import type { GenerateProgressionRequest } from "@/lib/generator/progression/types";
 
 export const defaultWarmupRequest: GenerateProgressionRequest = {
     seed: "18429",

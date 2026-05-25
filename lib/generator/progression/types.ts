@@ -1,16 +1,16 @@
+import type { Mode, Tonic } from "@/lib/model/harmony/key";
+import type {
+    ChordEventDto,
+    MusicStyle,
+} from "@/lib/model/harmony/types";
+
 export type GeneratorVersion = "v1";
-
-export type MusicKey = "C" | "D" | "E" | "F" | "G" | "A" | "B";
-
-export type MusicMode = "major" | "minor";
-
-export type MusicStyle = "pop" | "jazz" | "neoSoul" | "cinematic";
 
 export type Difficulty = 1 | 2 | 3 | 4 | 5;
 
 export type GenerationSettings = {
-    key: MusicKey;
-    mode: MusicMode;
+    key: Tonic;
+    mode: Mode;
     style: MusicStyle;
     difficulty: Difficulty;
     lengthBars: 4 | 8 | 16;
@@ -25,21 +25,6 @@ export type GenerateProgressionRequest = {
     seed: string;
     settings: GenerationSettings;
     generatorVersion: GeneratorVersion;
-};
-
-export type ChordRole =
-    | "tonic"
-    | "predominant"
-    | "dominant"
-    | "passing"
-    | "color";
-
-export type ChordEventDto = {
-    symbol: string;
-    roman: string;
-    durationBeats: number;
-    role: ChordRole;
-    tags: string[];
 };
 
 export type BarDto = {
