@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { usePracticePlayback } from "@/features/warmup/model/usePracticePlayback";
+import {
+    advanceBar,
+    selectPlaybackStatus,
+    selectTempoBpm,
+} from "@/features/warmup/model/practiceFocus";
 
-
+import { PracticeControls } from "@/features/warmup/ui/PracticeControls";
 import { cn } from "@/lib/utils";
 import {
     Carousel,
@@ -25,6 +32,16 @@ export function ProgressionFocus({
     onActiveBarChange,
 }: ProgressionFocusProps) {
     const [api, setApi] = useState<CarouselApi>();
+    const dispatch = useDispatch();
+    const playbackStatus = useSelector(selectPlaybackStatus);
+    const tempoBpm = useSelector(selectTempoBpm);
+
+    usePracticePlayback({
+        isPlaying: playbackStatus === "playing",
+        tempoBpm,
+        beatsPerBar: 4,
+        onAdvanceBar: () => dispatch(advanceBar(bars.length)),
+    });
 
     useEffect(() => {
         if (!api) {
@@ -73,8 +90,8 @@ export function ProgressionFocus({
                                 className={cn(
                                     "transition-transform duration-200 ease-in px-2",
                                     index === activeBarIndex
-                                        ? "scale-100"
-                                        : "scale-80"
+                                        ? "scale-90"
+                                        : "scale-90 opacity-90"
                                 )}
                             >
                                 <FocusChordCircle
@@ -86,6 +103,7 @@ export function ProgressionFocus({
                     ))}
                 </CarouselContent>
             </Carousel>
+            <PracticeControls />
         </div>
     );
 }
