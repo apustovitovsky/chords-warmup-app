@@ -6,13 +6,13 @@ import type {
     GeneratorVersion,
 } from "./types";
 
-import { getMajorTriad } from "@/lib/model/harmony/majorKeyTheory";
-import type { Tonic } from "@/lib/model/harmony/key";
+import { getMajorTriad } from "@/lib/entities/majorKeyTheory";
+import type { Tonic } from "@/lib/entities/key";
 import type {
     ChordEventDto,
     ChordRole,
     MajorFunctionalDegree,
-} from "@/lib/model/harmony/types";
+} from "@/lib/entities/types";
 
 const majorPatterns: MajorFunctionalDegree[][] = [
     ["I", "V", "vi", "IV"],

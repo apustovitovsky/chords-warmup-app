@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MODES, SUPPORTED_TONICS } from "@/lib/model/harmony/key";
+import { MODES, SUPPORTED_TONICS } from "@/lib/entities/key";
 
 export const GenerationSettingsSchema = z.object({
     key: z.enum(SUPPORTED_TONICS),

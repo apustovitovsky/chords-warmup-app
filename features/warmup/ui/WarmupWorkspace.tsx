@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+    resetSelectedBar,
+    selectActiveBarIndex,
+    selectBar,
+} from "@/features/warmup/model/practiceFocus";
 import { ProgressionFocus } from "@/features/warmup/ui/ProgressionFocus";
 import { defaultWarmupRequest } from "@/features/warmup/model/defaultRequest";
 import { ProgressionChart } from "@/features/warmup/ui/ProgressionChart";
@@ -18,7 +25,16 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
     const [result, setResult] = useState(progression);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [activeBarIndex, setActiveBarIndex] = useState(0);
+    const dispatch = useDispatch();
+    const activeBarIndex = useSelector(selectActiveBarIndex);
+
+    const handleBarSelect = (index: number) => {
+        if (index === activeBarIndex) {
+            return;
+        }
+
+        dispatch(selectBar(index));
+    }
 
     async function handleGenerate(request: GenerateProgressionRequest) {
         setIsLoading(true);
@@ -39,7 +55,7 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
 
             const nextResult = (await response.json()) as GeneratedProgression;
             setResult(nextResult);
-            setActiveBarIndex(0);
+            dispatch(resetSelectedBar());
         } catch {
             setErrorMessage("Generation failed. Check the settings and try again.");
         } finally {
@@ -97,13 +113,13 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
                     key={`${result.seed}-${result.settings.key}-${result.settings.lengthBars}`}
                     bars={result.bars}
                     activeBarIndex={activeBarIndex}
-                    onActiveBarChange={setActiveBarIndex}
+                    onActiveBarChange={handleBarSelect}
                 />
 
                 <ProgressionChart
                     bars={result.bars}
                     activeBarIndex={activeBarIndex}
-                    onBarSelect={setActiveBarIndex}
+                    onBarSelect={handleBarSelect}
                 />
             </section>
         </div>

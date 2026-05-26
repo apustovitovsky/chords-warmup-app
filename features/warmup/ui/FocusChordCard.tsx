@@ -14,7 +14,7 @@ export function FocusChordCard({
     return (
         <Card
             className={cn(
-                "transition-colors duration-400 ease-in-out",
+                "transition-colors duration-200 ease-in",
                 isActive && "bg-accent ring-accent"
             )}
         >

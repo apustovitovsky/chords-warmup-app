@@ -1,10 +1,13 @@
 # Architecture: FSD Light
 
-Use a lightweight Feature-Sliced Design structure for application code.
+Use a lightweight Feature-Sliced Design structure.
 
-- Keep `app/` focused on Next.js routing files such as `page.tsx`, `layout.tsx`, and `route.ts`.
-- Place feature-specific UI and behavior in `features/<feature>/`.
-- Keep generated shadcn primitives in `components/ui/` rather than moving them into feature slices.
-- Keep shared utilities and reusable domain logic in `lib/` until a clear feature boundary requires moving them.
-- Name React component files and exports in `PascalCase`; keep Next.js special filenames lowercase.
-- Prefer incremental FSD extraction: do not introduce empty layers, barrel files, or abstractions before they are needed.
+- `app/` contains routing and application composition, such as providers and the Redux store.
+- `features/<feature>/` contains feature-specific UI, state, and behavior.
+- `components/ui/` contains reusable shadcn-based UI primitives.
+- `lib/` contains shared utilities and reusable domain logic independent of features.
+
+Keep dependencies directed downward: `app -> features -> components/ui | lib`.
+`lib/` and `components/ui/` must not depend on `features/` or `app/`, and features must not import other features directly.
+
+Add layers or abstractions only when a real boundary requires them.

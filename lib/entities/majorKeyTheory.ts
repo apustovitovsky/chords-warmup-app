@@ -1,7 +1,7 @@
 import { Key } from "tonal";
 
-import type { Tonic } from "@/lib/model/harmony/key";
-import type { MajorFunctionalDegree } from "@/lib/model/harmony/types";
+import type { Tonic } from "@/lib/entities/key";
+import type { MajorFunctionalDegree } from "@/lib/entities/types";
 
 
 const degreeIndexes: Record<MajorFunctionalDegree, number> = {

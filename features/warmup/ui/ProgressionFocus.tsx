@@ -10,7 +10,7 @@ import {
     CarouselItem,
     type CarouselApi,
 } from "@/components/ui/carousel";
-import { FocusChordCard } from "@/features/warmup/ui/FocusChordCard";
+import { FocusChordCircle } from "@/features/warmup/ui/FocusChordCircle";
 import type { BarDto } from "@/lib/generator/progression/types";
 
 type ProgressionFocusProps = {
@@ -37,7 +37,6 @@ export function ProgressionFocus({
             onActiveBarChange(carouselApi.selectedScrollSnap());
         }
 
-        handleSelect();
         carouselApi.on("select", handleSelect);
 
         return () => {
@@ -53,14 +52,6 @@ export function ProgressionFocus({
         api.scrollTo(activeBarIndex);
     }, [api, activeBarIndex]);
 
-    const getCardOpacity = (index: number): number => {
-        const directDistance = Math.abs(index - activeBarIndex);
-        const loopDistance = bars.length - directDistance;
-        const distance = Math.min(directDistance, loopDistance);
-
-        return Math.max(1 - distance * 0.2, 0.4);
-    }
-
     return (
         <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -73,21 +64,20 @@ export function ProgressionFocus({
                     loop: true,
                 }}
                 setApi={setApi}
-                className="mx-auto w-full max-w-2xl px-10"
+                className="mx-auto w-full max-w-2xl"
             >
                 <CarouselContent>
                     {bars.map((bar, index) => (
                         <CarouselItem key={bar.index} className="lg:basis-1/4 basis-1/2">
                             <div
                                 className={cn(
-                                    "transition-all duration-400 ease-in-out",
+                                    "transition-transform duration-200 ease-in px-2",
                                     index === activeBarIndex
                                         ? "scale-100"
-                                        : "scale-90"
+                                        : "scale-80"
                                 )}
-                                style={{ opacity: getCardOpacity(index) }}
                             >
-                                <FocusChordCard
+                                <FocusChordCircle
                                     bar={bar}
                                     isActive={index === activeBarIndex}
                                 />

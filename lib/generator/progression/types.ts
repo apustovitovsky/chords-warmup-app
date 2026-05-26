@@ -1,8 +1,8 @@
-import type { Mode, Tonic } from "@/lib/model/harmony/key";
+import type { Mode, Tonic } from "@/lib/entities/key";
 import type {
     ChordEventDto,
     MusicStyle,
-} from "@/lib/model/harmony/types";
+} from "@/lib/entities/types";
 
 export type GeneratorVersion = "v1";
 

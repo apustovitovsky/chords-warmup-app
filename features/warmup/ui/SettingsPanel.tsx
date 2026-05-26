@@ -20,7 +20,7 @@ import type {
 import {
     SUPPORTED_TONICS,
     type Tonic,
-} from "@/lib/model/harmony/key";
+} from "@/lib/entities/key";
 
 type SettingsPanelProps = {
     initialRequest: GenerateProgressionRequest;

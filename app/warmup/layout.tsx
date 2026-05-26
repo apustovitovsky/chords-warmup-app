@@ -1,3 +1,4 @@
+import { StoreProvider } from "@/app/providers/StoreProvider";
 import { WarmupLayout as WarmupFeatureLayout } from "@/features/warmup/ui/WarmupLayout";
 
 export default function WarmupLayout({
@@ -5,5 +6,9 @@ export default function WarmupLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    return <WarmupFeatureLayout>{children}</WarmupFeatureLayout>;
+    return (
+        <StoreProvider>
+            <WarmupFeatureLayout>{children}</WarmupFeatureLayout>
+        </StoreProvider>
+    );
 }
