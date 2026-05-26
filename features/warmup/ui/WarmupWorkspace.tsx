@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-
+import { ProgressionFocus } from "@/features/warmup/ui/ProgressionFocus";
 import { defaultWarmupRequest } from "@/features/warmup/model/defaultRequest";
-import { ChordCard } from "@/features/warmup/ui/ChordCard";
+import { ProgressionChart } from "@/features/warmup/ui/ProgressionChart";
 import { SettingsPanel } from "@/features/warmup/ui/SettingsPanel";
 import type {
     GeneratedProgression,
@@ -18,6 +18,7 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
     const [result, setResult] = useState(progression);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [activeBarIndex, setActiveBarIndex] = useState(0);
 
     async function handleGenerate(request: GenerateProgressionRequest) {
         setIsLoading(true);
@@ -38,6 +39,7 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
 
             const nextResult = (await response.json()) as GeneratedProgression;
             setResult(nextResult);
+            setActiveBarIndex(0);
         } catch {
             setErrorMessage("Generation failed. Check the settings and try again.");
         } finally {
@@ -81,7 +83,7 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
                         </span>
                     </div>
                 </header>
-                
+
                 {errorMessage && (
                     <p
                         role="alert"
@@ -91,11 +93,18 @@ export function WarmupWorkspace({ progression }: WarmupWorkspaceProps) {
                     </p>
                 )}
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {result.bars.map((bar) => (
-                        <ChordCard key={bar.index} bar={bar} />
-                    ))}
-                </div>
+                <ProgressionFocus
+                    key={`${result.seed}-${result.settings.key}-${result.settings.lengthBars}`}
+                    bars={result.bars}
+                    activeBarIndex={activeBarIndex}
+                    onActiveBarChange={setActiveBarIndex}
+                />
+
+                <ProgressionChart
+                    bars={result.bars}
+                    activeBarIndex={activeBarIndex}
+                    onBarSelect={setActiveBarIndex}
+                />
             </section>
         </div>
     );

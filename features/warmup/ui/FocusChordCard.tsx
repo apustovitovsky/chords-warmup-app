@@ -2,17 +2,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { BarDto } from "@/lib/generator/progression/types";
 import { cn } from "@/lib/utils";
 
-type ChordCardProps = {
+type FocusChordCardProps = {
     bar: BarDto;
     isActive?: boolean;
 };
 
-export function ChordCard({ bar, isActive = false }: ChordCardProps) {
+export function FocusChordCard({
+    bar,
+    isActive = false,
+}: FocusChordCardProps) {
     return (
         <Card
             className={cn(
-                "transition-colors",
-                isActive && "ring-2 ring-card-focus bg-accent"
+                "transition-colors duration-400 ease-in-out",
+                isActive && "bg-accent ring-accent"
             )}
         >
             <CardHeader>
@@ -24,8 +27,12 @@ export function ChordCard({ bar, isActive = false }: ChordCardProps) {
             <CardContent>
                 {bar.chords.map((chord, index) => (
                     <div key={index} className="space-y-1">
-                        <div className="text-2xl font-semibold">{chord.symbol}</div>
-                        <div className="text-sm text-muted-foreground">{chord.roman}</div>
+                        <div className="text-3xl font-semibold">
+                            {chord.symbol}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                            {chord.roman}
+                        </div>
                     </div>
                 ))}
             </CardContent>

@@ -76,6 +76,7 @@ export function SettingsPanel({
                 <div className="space-y-2">
                     <Label htmlFor="key">Key</Label>
                     <Select
+                        name="key"
                         value={key}
                         onValueChange={(value) => setKey(value as Tonic)}
                     >
@@ -93,14 +94,15 @@ export function SettingsPanel({
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="bars">Bars</Label>
+                    <Label htmlFor="lengthBars">Bars</Label>
                     <Select
+                        name="lengthBars"
                         value={String(lengthBars)}
                         onValueChange={(value) =>
                             setLengthBars(Number(value) as 4 | 8 | 16)
                         }
                     >
-                        <SelectTrigger id="bars" className="w-full">
+                        <SelectTrigger id="lengthBars" className="w-full">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
