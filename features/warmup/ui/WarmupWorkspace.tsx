@@ -15,7 +15,7 @@ import { SettingsPanel } from "@/features/warmup/ui/SettingsPanel";
 import type {
     GeneratedProgression,
     GenerateProgressionRequest,
-} from "@/lib/generator/progression/types";
+} from "@/lib/generators/progression/types";
 
 type WarmupWorkspaceProps = {
     progression: GeneratedProgression;

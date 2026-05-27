@@ -1,5 +1,5 @@
 import { ChordCard } from "@/features/warmup/ui/ChordCard";
-import type { BarDto } from "@/lib/generator/progression/types";
+import type { BarDto } from "@/lib/generators/progression/types";
 
 type ProgressionChartProps = {
     bars: BarDto[];

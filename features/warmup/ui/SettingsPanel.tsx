@@ -15,7 +15,7 @@ import {
 
 import type {
     GenerateProgressionRequest,
-} from "@/lib/generator/progression/types";
+} from "@/lib/generators/progression/types";
 
 import {
     SUPPORTED_TONICS,

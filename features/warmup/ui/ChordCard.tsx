@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { BarDto } from "@/lib/generator/progression/types";
+import type { BarDto } from "@/lib/generators/progression/types";
 import { cn } from "@/lib/utils";
 
 type ChordCardProps = {

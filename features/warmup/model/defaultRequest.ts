@@ -1,4 +1,4 @@
-import type { GenerateProgressionRequest } from "@/lib/generator/progression/types";
+import type { GenerateProgressionRequest } from "@/lib/generators/progression/types";
 
 export const defaultWarmupRequest: GenerateProgressionRequest = {
     seed: "18429",

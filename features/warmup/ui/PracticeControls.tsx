@@ -4,6 +4,11 @@ import { PauseIcon, PlayIcon, SquareIcon } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 
+import {
+    startPracticeAudio,
+    stopPracticeAudio,
+} from "@/features/warmup/audio/practicePiano";
+
 import { Button } from "@/components/ui/button";
 import {
     pause,
@@ -15,6 +20,7 @@ import {
 } from "@/features/warmup/model/practiceFocus";
 
 import { Slider } from "@/components/ui/slider";
+
 
 export function PracticeControls() {
     const dispatch = useDispatch();
@@ -28,13 +34,20 @@ export function PracticeControls() {
 
     const isPlaying = playbackStatus === "playing";
 
-    function handlePlayPause() {
+    async function handlePlayPause() {
         if (isPlaying) {
+            stopPracticeAudio();
             dispatch(pause());
             return;
         }
 
+        await startPracticeAudio();
         dispatch(play());
+    }
+
+    function handleStop() {
+        stopPracticeAudio();
+        dispatch(stop());
     }
 
     return (
@@ -59,7 +72,7 @@ export function PracticeControls() {
                     size="icon-lg"
                     variant="ghost"
                     className="size-12 rounded-full text-muted-foreground hover:bg-accent hover:text-foreground dark:hover:bg-accent"
-                    onClick={() => dispatch(stop())}
+                    onClick={handleStop}
                     aria-label="Stop practice"
                     disabled={playbackStatus === "stopped"}
                 >

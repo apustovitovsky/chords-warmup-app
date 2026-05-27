@@ -8,6 +8,7 @@ import {
     selectPlaybackStatus,
     selectTempoBpm,
 } from "@/features/warmup/model/practiceFocus";
+import { playPracticeChord } from "@/features/warmup/audio/practicePiano";
 
 import { PracticeControls } from "@/features/warmup/ui/PracticeControls";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,8 @@ import {
     type CarouselApi,
 } from "@/components/ui/carousel";
 import { FocusChordCircle } from "@/features/warmup/ui/FocusChordCircle";
-import type { BarDto } from "@/lib/generator/progression/types";
+import type { BarDto } from "@/lib/generators/progression/types";
+import { getPracticeChordNotes } from "@/lib/entities/chordVoicing";
 
 type ProgressionFocusProps = {
     bars: BarDto[];
@@ -69,6 +71,19 @@ export function ProgressionFocus({
         api.scrollTo(activeBarIndex);
     }, [api, activeBarIndex]);
 
+    const activeChordSymbol = bars[activeBarIndex]?.chords[0]?.symbol;
+    const activeChordNotes = activeChordSymbol
+        ? getPracticeChordNotes(activeChordSymbol)
+        : [];
+
+    useEffect(() => {
+        if (playbackStatus !== "playing" || activeChordNotes.length === 0) {
+            return;
+        }
+
+        void playPracticeChord(activeChordNotes);
+    }, [playbackStatus, activeBarIndex]);
+
     return (
         <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -103,6 +118,7 @@ export function ProgressionFocus({
                     ))}
                 </CarouselContent>
             </Carousel>
+
             <PracticeControls />
         </div>
     );
