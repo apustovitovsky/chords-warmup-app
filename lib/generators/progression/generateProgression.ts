@@ -1,42 +1,55 @@
 import { SeededRandom } from "@/lib/random/seededRandom";
 
 import type {
+    ChordEventDto,
+    ChordRole,
+} from "@/lib/entities/types";
+
+import {
+    basicStructuralTemplates,
+    borrowedStructuralTemplates,
+} from "./structural/templates";
+import { realizeRomanProgression } from "./structural/realizeRomanProgression";
+import { StructuralProgressionGenerator } from "./structural/StructuralProgressionGenerator";
+import type { RomanChord } from "./structural/types";
+import type {
     GeneratedProgression,
     GenerationSettings,
     GeneratorVersion,
 } from "./types";
 
-import { getMajorTriad } from "@/lib/entities/majorKeyTheory";
-import type { Tonic } from "@/lib/entities/key";
-import type {
-    ChordEventDto,
-    ChordRole,
-    MajorFunctionalDegree,
-} from "@/lib/entities/types";
+const romanLabels: Record<RomanChord, string> = {
+    I: "I",
+    IIm: "ii",
+    IIIm: "iii",
+    IV: "IV",
+    V: "V",
+    VIm: "vi",
+    IVm: "iv",
+};
 
-const majorPatterns: MajorFunctionalDegree[][] = [
-    ["I", "V", "vi", "IV"],
-    ["I", "vi", "IV", "V"],
-    ["vi", "IV", "I", "V"],
-];
-
-const degreeRoles: Record<MajorFunctionalDegree, ChordRole> = {
+const chordRoles: Record<RomanChord, ChordRole> = {
     I: "tonic",
+    IIm: "predominant",
+    IIIm: "tonic",
     IV: "predominant",
     V: "dominant",
-    vi: "tonic",
+    VIm: "tonic",
+    IVm: "color",
 };
 
 function createChord(
-    tonic: Tonic,
-    degree: MajorFunctionalDegree
+    symbol: string,
+    roman: RomanChord
 ): ChordEventDto {
     return {
-        symbol: getMajorTriad(tonic, degree),
-        roman: degree,
+        symbol,
+        roman: romanLabels[roman],
         durationBeats: 4,
-        role: degreeRoles[degree],
-        tags: ["diatonic", "triad"],
+        role: chordRoles[roman],
+        tags: roman === "IVm"
+            ? ["borrowed", "triad"]
+            : ["diatonic", "triad"],
     };
 }
 
@@ -45,17 +58,31 @@ export function generateProgression(
     seed: string,
     generatorVersion: GeneratorVersion
 ): GeneratedProgression {
-    const rng = new SeededRandom(seed);
-    const selectedPattern = rng.pick(majorPatterns);
+    const random = new SeededRandom(seed);
 
-    const bars = Array.from({ length: settings.lengthBars }, (_, index) => {
-        const degree = selectedPattern[index % selectedPattern.length];
+    const templates = settings.allowBorrowedChords
+        ? [...basicStructuralTemplates, ...borrowedStructuralTemplates]
+        : basicStructuralTemplates;
 
-        return {
-            index: index + 1,
-            chords: [createChord(settings.key, degree)],
-        };
-    });
+    const structuralGenerator = new StructuralProgressionGenerator(
+        templates,
+        3
+    );
+
+    const romanProgression = structuralGenerator.generate(
+        settings.lengthBars,
+        random
+    );
+
+    const symbols = realizeRomanProgression(
+        settings.key,
+        romanProgression
+    );
+
+    const bars = romanProgression.map((roman, index) => ({
+        index: index + 1,
+        chords: [createChord(symbols[index], roman)],
+    }));
 
     return {
         seed,

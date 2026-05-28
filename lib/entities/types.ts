@@ -4,8 +4,6 @@ export type MusicMode = "major" | "minor";
 
 export type MusicStyle = "pop" | "jazz" | "neoSoul" | "cinematic";
 
-export type MajorFunctionalDegree = "I" | "IV" | "V" | "vi";
-
 export type ChordRole =
     | "tonic"
     | "predominant"
