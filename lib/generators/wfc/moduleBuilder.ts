@@ -1,118 +1,101 @@
-import type { Module } from "./module.ts";
-import type { Pattern, PatternGroup } from "./pattern.ts";
-import { ModuleSet } from "./moduleSet.ts";
-import { Direction } from "./direction.ts";
-import type { Constraint } from "./constraint.ts";
-import { createConstraints } from "./constraintBuilder.ts";
+import { type Module, getModuleByTag } from "./module";
+import type { Pattern, PatternCollection } from "./pattern";
+import { ModuleSet } from "./moduleSet";
+import { Direction } from "./direction";
 
-export interface ModuleBuilderResult {
-    modules: Module[];
-    constraints: Constraint[];
-}
 
-export function buildModules(patternGroups: PatternGroup[]): ModuleBuilderResult {
-    const patterns = patternGroups.flatMap((group) => group.patterns);
-    const modules = createInitialModules(patterns);
-    const moduleByTag = createModuleByTag(modules);
+class ModuleBuilder {
+    build(patternCollections: PatternCollection[]): Module[] {
+        const patterns = patternCollections.flatMap((patternCollection) => patternCollection.patterns);
+        const moduleByTag = this.createInitialModules(patterns);
+        const modules = [...moduleByTag.values()];
 
-    configureModules(patterns, moduleByTag);
+        this.initializeModules(modules);
+        this.configureModules(patterns, moduleByTag);
 
-    const constraints = createConstraints(patternGroups, modules, moduleByTag);
+        return modules;
+    }
 
-    return { modules, constraints };
-}
+    private createInitialModules(patterns: Pattern[]): Map<string, Module> {
+        const moduleByTag = new Map<string, Module>();
 
-function createInitialModules(patterns: Pattern[]): Module[] {
-    const modulesByTag = new Map<string, Module>();
+        for (const pattern of patterns) {
+            for (const tag of pattern.tags) {
+                if (moduleByTag.has(tag)) {
+                    continue;
+                }
 
-    for (const pattern of patterns) {
-        for (const tag of pattern.tags) {
-            if (modulesByTag.has(tag)) {
-                continue;
+                moduleByTag.set(tag, {
+                    id: moduleByTag.size,
+                    tag,
+                    possibleNeighbors: [],
+                    neighborWeights: []
+                });
             }
+        }
 
-            modulesByTag.set(tag, {
-                id: modulesByTag.size,
-                tag,
-                possibleNeighbors: [],
-                neighborWeights: [],
-            });
+        return moduleByTag;
+    }
+
+    private initializeModules(modules: Module[]): void {
+        for (const module of modules) {
+            module.possibleNeighbors = [
+                new ModuleSet(modules),
+                new ModuleSet(modules),
+            ];
+
+            module.neighborWeights = [
+                new Array(modules.length).fill(0),
+                new Array(modules.length).fill(0),
+            ];
         }
     }
 
-    const modules = [...modulesByTag.values()];
+    private configureModules(
+        patterns: Pattern[],
+        moduleByTag: Map<string, Module>
+    ): void {
+        for (const pattern of patterns) {
+            for (let index = 0; index < pattern.tags.length; index++) {
+                const tag = pattern.tags[index];
+                const module = getModuleByTag(moduleByTag, tag);
 
-    initializeModuleData(modules);
+                this.addNeighborByTag(
+                    moduleByTag,
+                    module,
+                    pattern.tags[index - 1],
+                    Direction.Back
+                );
 
-    return modules;
-}
-
-export function createModuleByTag(modules: Module[]): Map<string, Module> {
-    return new Map(modules.map((module) => [module.tag, module]));
-}
-
-function initializeModuleData(modules: Module[]): void {
-    for (const module of modules) {
-        module.possibleNeighbors = [
-            new ModuleSet(modules),
-            new ModuleSet(modules),
-        ];
-
-        module.neighborWeights = [
-            new Array(modules.length).fill(0),
-            new Array(modules.length).fill(0),
-        ];
-    }
-}
-
-function configureModules(
-    patterns: Pattern[],
-    moduleByTag: Map<string, Module>
-): void {
-    for (const pattern of patterns) {
-        for (let index = 0; index < pattern.tags.length; index++) {
-            const tag = pattern.tags[index];
-            const module = getModule(moduleByTag, tag);
-
-            addNeighborByTag(
-                moduleByTag,
-                module,
-                pattern.tags[index - 1],
-                Direction.Previous
-            );
-
-            addNeighborByTag(
-                moduleByTag,
-                module,
-                pattern.tags[index + 1],
-                Direction.Next
-            );
+                this.addNeighborByTag(
+                    moduleByTag,
+                    module,
+                    pattern.tags[index + 1],
+                    Direction.Forward
+                );
+            }
         }
     }
+
+    private addNeighborByTag(
+        moduleByTag: Map<string, Module>,
+        module: Module,
+        neighborTag: string | undefined,
+        direction: Direction
+    ): void {
+        if (neighborTag === undefined) {
+            return;
+        }
+
+        const neighbor = getModuleByTag(moduleByTag, neighborTag);
+
+        module.possibleNeighbors[direction].add(neighbor);
+        module.neighborWeights[direction][neighbor.id]++;
+    }
 }
 
-function addNeighborByTag(
-    moduleByTag: Map<string, Module>,
-    module: Module,
-    neighborTag: string | undefined,
-    direction: Direction
-): void {
-    if (neighborTag === undefined) {
-        return;
-    }
-
-    const neighbor = getModule(moduleByTag, neighborTag);
-
-    module.possibleNeighbors[direction].add(neighbor);
-    module.neighborWeights[direction][neighbor.id]++;
-}
-
-function getModule(moduleByTag: Map<string, Module>, tag: string): Module {
-    const module = moduleByTag.get(tag);
-
-    if (!module) {
-        throw new Error(`Module not found for tag "${tag}".`);
-    }
-
-    return module;
+export function createModules(
+    patternCollections: PatternCollection[]
+): Module[] {
+    return new ModuleBuilder().build(patternCollections);
 }

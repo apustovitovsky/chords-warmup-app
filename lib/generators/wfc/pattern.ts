@@ -3,11 +3,11 @@ export interface Pattern {
     tags: string[];
 }
 
-export interface PatternGroup {
+export interface PatternCollection {
     tags: string[];
     patterns: Pattern[];
 }
 
-export const flattenPatternGroup = (patternGroups: PatternGroup[]): Pattern[] => {
-    return patternGroups.flatMap((group) => group.patterns);
+export const flattenPatternCollections = (patternCollections: PatternCollection[]): Pattern[] => {
+    return patternCollections.flatMap((patternCollection) => patternCollection.patterns);
 };

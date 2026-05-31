@@ -1,12 +1,12 @@
 export const Direction = {
-    Previous: 0,
-    Next: 1,
+    Back: 0,
+    Forward: 1,
 } as const;
 
 export type Direction = typeof Direction[keyof typeof Direction];
 
 export function oppositeDirection(direction: Direction): Direction {
-    return direction === Direction.Previous
-        ? Direction.Next
-        : Direction.Previous;
+    return direction === Direction.Back
+        ? Direction.Forward
+        : Direction.Back;
 }

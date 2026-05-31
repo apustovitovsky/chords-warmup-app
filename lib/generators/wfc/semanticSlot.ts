@@ -1,16 +1,17 @@
 import type { Module } from "./module";
 import { ModuleSet } from "./moduleSet";
 
-export class Slot {
-    readonly modules: ModuleSet;
+export class SemanticSlot {
     readonly moduleHealth: number[][];
     collapsedModuleId: number | null = null;
 
     constructor(
+        readonly nodeId: number,
         allModules: Module[],
-        modules: ModuleSet = new ModuleSet(allModules, true)
+        readonly modules: ModuleSet = new ModuleSet(allModules, true),
+        readonly supportNodeIds: number[] = [nodeId],
+        readonly supportModules: ModuleSet = modules
     ) {
-        this.modules = modules;
         this.moduleHealth = [
             new Array(allModules.length).fill(0),
             new Array(allModules.length).fill(0),
@@ -28,7 +29,7 @@ export class Slot {
         this.modules.removeSet(removedModules);
 
         if (this.modules.empty) {
-            throw new Error("Slot has no possible modules.");
+            throw new Error("SemanticSlot has no possible modules.");
         }
 
         return removedModules;
@@ -36,11 +37,11 @@ export class Slot {
 
     collapse(module: Module): ModuleSet {
         if (this.collapsed) {
-            throw new Error("Slot is already collapsed.");
+            throw new Error("SemanticSlot is already collapsed.");
         }
 
         if (!this.modules.contains(module)) {
-            throw new Error(`Cannot collapse slot to unavailable module "${module.tag}".`);
+            throw new Error(`Cannot collapse semantic slot to unavailable module "${module.tag}".`);
         }
 
         const modulesToRemove = this.modules.clone();

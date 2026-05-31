@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "wfc:slots": "tsx ./lib/generators/wfc/smoke/createSlotsSmoke.ts",
+    "wfc:modules": "tsx ./lib/generators/wfc/smoke/createModulesSmoke.ts",
+    "wfc:graph": "tsx ./lib/generators/wfc/smoke/createPatternGraphSmoke.ts",
+    "smoke:wfc:semantic-health": "tsx lib/generators/wfc/smoke/createSemanticSlotHealthSmoke.ts"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
@@ -35,6 +39,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }

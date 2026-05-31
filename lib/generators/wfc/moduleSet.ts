@@ -1,4 +1,4 @@
-import type { Module } from "./module.ts";
+import type { Module } from "./module";
 
 const bitsPerItem = 32;
 
@@ -116,6 +116,14 @@ export class ModuleSet implements Iterable<Module> {
 
     clear(): void {
         this.data.fill(0);
+    }
+
+    enforce(mask: ModuleSet): void {
+        this.intersect(mask);
+    }
+
+    exclude(mask: ModuleSet): void {
+        this.removeSet(mask);
     }
 
     intersect(set: ModuleSet): void {
