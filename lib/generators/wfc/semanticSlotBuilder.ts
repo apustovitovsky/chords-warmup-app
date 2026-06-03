@@ -1,59 +1,52 @@
 import type { Module } from "./module";
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
+import { NeighborContext } from "./neighborContext";
 import { SemanticSlot } from "./semanticSlot";
 import type { SemanticGraph } from "./graph/semanticGraph";
-import type { GraphModuleResult } from "./graphModuleBuilder";
-import type { SemanticLayout, SemanticLayoutSection } from "./semanticLayout";
+import type { GraphModuleMap } from "./graphModuleBuilder";
+import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
 
 export function createSemanticSlots(
     layout: SemanticLayout,
     semanticGraph: SemanticGraph,
-    moduleResult: GraphModuleResult
+    moduleMap: GraphModuleMap
 ): SemanticSlot[] {
     const builder = new SemanticSlotBuilder();
 
-    return builder.build(layout, semanticGraph, moduleResult);
+    return builder.build(layout, semanticGraph, moduleMap);
 }
 
 class SemanticSlotBuilder {
     build(
         layout: SemanticLayout,
         semanticGraph: SemanticGraph,
-        moduleResult: GraphModuleResult
+        moduleMap: GraphModuleMap
     ): SemanticSlot[] {
         const slots: SemanticSlot[] = [];
-        const supportOverlap = 0;
+        const moduleMaskByNodeId = new Map<number, ModuleSet>();
 
-        for (const section of layout.sections) {
-            const moduleMask = this.createModuleMask(
+        for (let slotIndex = 0; slotIndex < layout.slots.length; slotIndex++) {
+            const slot = layout.slots[slotIndex];
+            const moduleMask = this.getModuleMask(
                 semanticGraph,
-                moduleResult,
-                section.nodeId
+                moduleMap,
+                moduleMaskByNodeId,
+                slot.nodeId
             );
 
-            for (
-                let slotIndex = section.startIndex;
-                slotIndex <= section.endIndex;
-                slotIndex++
-            ) {
-
-                const { supportModules, supportNodeIds } = this.createSupportContext(
-                    layout.sections,
+            slots.push(new SemanticSlot(
+                slot.nodeId,
+                moduleMap.modules,
+                moduleMask.clone(),
+                this.createNeighborContext(
+                    this.getNeighborIndices(layout.slots, slotIndex),
                     semanticGraph,
-                    moduleResult,
-                    slotIndex,
-                    supportOverlap
-                );
-
-                slots.push(new SemanticSlot(
-                    section.nodeId,
-                    moduleResult.modules,
-                    moduleMask.clone(),
-                    supportNodeIds,
-                    supportModules
-                ));
-            }
+                    moduleMap,
+                    moduleMaskByNodeId,
+                    slot.supportNodeIds
+                )
+            ));
         }
 
         this.initializeModuleHealth(slots);
@@ -61,55 +54,84 @@ class SemanticSlotBuilder {
         return slots;
     }
 
-    private createSupportContext(
-        sections: SemanticLayoutSection[],
-        semanticGraph: SemanticGraph,
-        moduleResult: GraphModuleResult,
-        globalSlotIndex: number,
-        supportOverlap: number
-    ): {
-        supportModules: ModuleSet;
-        supportNodeIds: number[];
-    } {
-        const supportModules = new ModuleSet(moduleResult.modules);
-        const supportNodeIds: number[] = [];
+    private getNeighborIndices(
+        slots: SemanticLayoutSlot[],
+        slotIndex: number
+    ): Array<number | null> {
+        const slot = slots[slotIndex];
 
-        const supportStartIndex = globalSlotIndex - supportOverlap;
-        const supportEndIndex = globalSlotIndex + supportOverlap;
+        return [
+            this.hasSharedSupportContext(slot, slots[slotIndex - 1])
+                ? slotIndex - 1
+                : null,
+            this.hasSharedSupportContext(slot, slots[slotIndex + 1])
+                ? slotIndex + 1
+                : null,
+        ];
+    }
 
-        for (const section of sections) {
-            const intersects =
-                section.startIndex <= supportEndIndex &&
-                section.endIndex >= supportStartIndex;
-
-            if (!intersects) {
-                continue;
-            }
-
-            supportModules.addSet(this.createModuleMask(
-                semanticGraph,
-                moduleResult,
-                section.nodeId
-            ));
-
-            supportNodeIds.push(section.nodeId);
+    private hasSharedSupportContext(
+        slot: SemanticLayoutSlot,
+        neighbor: SemanticLayoutSlot | undefined
+    ): boolean {
+        if (!neighbor) {
+            return false;
         }
 
-        return { supportModules, supportNodeIds };
+        return slot.supportNodeIds.some((nodeId) =>
+            neighbor.supportNodeIds.includes(nodeId)
+        );
+    }
+
+    private createNeighborContext(
+        neighborIndices: Array<number | null>,
+        semanticGraph: SemanticGraph,
+        moduleMap: GraphModuleMap,
+        moduleMaskByNodeId: Map<number, ModuleSet>,
+        supportNodeIds: number[]
+    ): NeighborContext {
+        const neighborModules = new ModuleSet(moduleMap.modules);
+
+        for (const nodeId of supportNodeIds) {
+            neighborModules.addSet(this.getModuleMask(
+                semanticGraph,
+                moduleMap,
+                moduleMaskByNodeId,
+                nodeId
+            ));
+        }
+
+        return new NeighborContext(neighborIndices, neighborModules);
+    }
+
+    private getModuleMask(
+        semanticGraph: SemanticGraph,
+        moduleMap: GraphModuleMap,
+        moduleMaskByNodeId: Map<number, ModuleSet>,
+        nodeId: number
+    ): ModuleSet {
+        let moduleMask = moduleMaskByNodeId.get(nodeId);
+
+        if (!moduleMask) {
+            moduleMask = this.createModuleMask(semanticGraph, moduleMap, nodeId);
+            moduleMaskByNodeId.set(nodeId, moduleMask);
+        }
+
+        return moduleMask;
     }
 
     private createModuleMask(
         semanticGraph: SemanticGraph,
-        moduleResult: GraphModuleResult,
+        moduleMap: GraphModuleMap,
         nodeId: number
     ): ModuleSet {
-        const mask = new ModuleSet(moduleResult.modules);
+        const mask = new ModuleSet(moduleMap.modules);
 
-        for (const leafNode of semanticGraph.graph.getLeafNodes(nodeId)) {
-            const module = moduleResult.moduleByGraphNodeId.get(leafNode.id);
+        for (const leafNodeId of semanticGraph.graph.getLeafNodeIds(nodeId)) {
+            const module = moduleMap.moduleByGraphNodeId.get(leafNodeId);
 
             if (!module) {
-                throw new Error(`Module not found for graph node "${leafNode.id}".`);
+                throw new Error(`Module not found for graph node "${leafNodeId}".`);
             }
 
             mask.add(module);
@@ -124,13 +146,13 @@ class SemanticSlotBuilder {
 
             this.initializeModuleHealthForDirection(
                 slot,
-                slots[slotIndex - 1],
+                slots,
                 Direction.Back
             );
 
             this.initializeModuleHealthForDirection(
                 slot,
-                slots[slotIndex + 1],
+                slots,
                 Direction.Forward
             );
         }
@@ -138,12 +160,16 @@ class SemanticSlotBuilder {
 
     private initializeModuleHealthForDirection(
         slot: SemanticSlot,
-        neighbor: SemanticSlot | undefined,
+        slots: SemanticSlot[],
         direction: Direction
     ): void {
-        if (!neighbor || !this.hasSharedSupportContext(slot, neighbor)) {
+        const neighborIndex = slot.neighborContext.getNeighborIndex(direction);
+
+        if (neighborIndex === null) {
             return;
         }
+
+        const neighbor = slots[neighborIndex];
 
         for (const module of slot.modules) {
             let health = 0;
@@ -158,15 +184,6 @@ class SemanticSlotBuilder {
         }
     }
 
-    private hasSharedSupportContext(
-        slot: SemanticSlot,
-        neighbor: SemanticSlot
-    ): boolean {
-        return slot.supportNodeIds.some((nodeId) =>
-            neighbor.supportNodeIds.includes(nodeId)
-        );
-    }
-
     private hasSupport(
         slot: SemanticSlot,
         module: Module,
@@ -174,37 +191,14 @@ class SemanticSlotBuilder {
         neighborModule: Module,
         direction: Direction
     ): boolean {
-        return this.hasTagTransition(
-            slot.supportModules,
-            module.tag,
-            neighborModule.tag,
+        return slot.neighborContext.hasTransition(
+            module,
+            neighborModule,
             direction
-        ) || this.hasTagTransition(
-            neighbor.supportModules,
-            module.tag,
-            neighborModule.tag,
+        ) || neighbor.neighborContext.hasTransition(
+            module,
+            neighborModule,
             direction
         );
-    }
-
-    private hasTagTransition(
-        modules: ModuleSet,
-        fromTag: string,
-        toTag: string,
-        direction: Direction
-    ): boolean {
-        for (const contextModule of modules) {
-            if (contextModule.tag !== fromTag) {
-                continue;
-            }
-
-            for (const contextNeighbor of contextModule.possibleNeighbors[direction]) {
-                if (contextNeighbor.tag === toTag) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }

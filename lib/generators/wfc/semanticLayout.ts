@@ -1,17 +1,23 @@
 
-export interface SemanticSectionDefinition {
+export interface SemanticSegmentDefinition {
     patternTag: string;
     sectionTag: string;
     length: number;
 }
 
-export interface SemanticLayoutSection {
+export interface SemanticLayoutSegment {
     nodeId: number;
     startIndex: number;
     endIndex: number;
 }
 
+export interface SemanticLayoutSlot {
+    nodeId: number;
+    supportNodeIds: number[];
+}
+
 export interface SemanticLayout {
-    sections: SemanticLayoutSection[];
+    segments: SemanticLayoutSegment[];
+    slots: SemanticLayoutSlot[];
     slotCount: number;
 }

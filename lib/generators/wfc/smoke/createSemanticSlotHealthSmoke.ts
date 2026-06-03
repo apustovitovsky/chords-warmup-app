@@ -4,8 +4,7 @@ import type { PatternLibrary } from "../graph/patternLibrary";
 import { createSemanticGraph } from "../graph/semanticGraph";
 import { createPatternValueModules } from "../graphModuleBuilder";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
-import type { SemanticSectionDefinition } from "../semanticLayout";
-
+import type { SemanticSegmentDefinition } from "../semanticLayout";
 import { createSemanticSlots } from "../semanticSlotBuilder";
 import type { ModuleSet } from "../moduleSet";
 
@@ -49,23 +48,26 @@ const library: PatternLibrary = {
 };
 
 const semanticGraph = createSemanticGraph(library);
-const moduleResult = createPatternValueModules(library, semanticGraph);
+const moduleMap = createPatternValueModules(library, semanticGraph);
 const graph = semanticGraph.graph;
 
-const slotDefinitions: SemanticSectionDefinition[] = [
+const slotDefinitions: SemanticSegmentDefinition[] = [
     { patternTag: "genre2", sectionTag: "verse", length: 2 },
-    { patternTag: "genre2", sectionTag: "chorus", length: 2 },
+    { patternTag: "genre3", sectionTag: "chorus", length: 2 },
+    { patternTag: "genre1", sectionTag: "intro", length: 2 },
+    { patternTag: "genre2", sectionTag: "outro", length: 2 },
 ];
 
 const layout = createSemanticLayout(
     slotDefinitions,
-    semanticGraph
+    semanticGraph,
+    { supportOverlap: 1 }
 );
 
 const slots = createSemanticSlots(
     layout,
     semanticGraph,
-    moduleResult
+    moduleMap
 );
 
 console.log("\nsemantic slot health");
@@ -75,7 +77,7 @@ for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
 
     console.log(`\n${slotIndex}. ${formatGraphPath(graph, slot.nodeId)}`);
     console.log(`  domain: ${formatModuleTags(slot.modules)}`);
-    console.log(`  support: ${formatModuleTags(slot.supportModules)}`);
+    console.log(`  support: ${formatModuleTags(slot.neighborContext.modules)}`);
 
     for (const module of slot.modules) {
         const backSupport = getSupportedNeighborTags(slotIndex, module, Direction.Back);
@@ -114,22 +116,18 @@ function formatGraphPath(graph: Graph<string>, nodeId: number): string {
 
 function getSupportedNeighborTags(
     slotIndex: number,
-    module: typeof moduleResult.modules[number],
+    module: typeof moduleMap.modules[number],
     direction: Direction
 ): string {
     const slot = slots[slotIndex];
 
-    const neighborSlot = direction === Direction.Back
-        ? slots[slotIndex - 1]
-        : slots[slotIndex + 1];
+    const neighborIndex = slot.neighborContext.getNeighborIndex(direction);
 
-    if (!neighborSlot) {
-        return "-";
+    if (neighborIndex === null) {
+        return "x";
     }
 
-    if (!hasSharedSupportContext(slot, neighborSlot)) {
-        return "-";
-    }
+    const neighborSlot = slots[neighborIndex];
 
     const supportedTags: string[] = [];
 
@@ -144,52 +142,20 @@ function getSupportedNeighborTags(
     return supportedTags.join(", ") || "-";
 }
 
-function hasSharedSupportContext(
-    slot: typeof slots[number],
-    neighborSlot: typeof slots[number]
-): boolean {
-    return slot.supportNodeIds.some((nodeId) =>
-        neighborSlot.supportNodeIds.includes(nodeId)
-    );
-}
-
 function supports(
     slot: typeof slots[number],
-    module: typeof moduleResult.modules[number],
+    module: typeof moduleMap.modules[number],
     neighborSlot: typeof slots[number],
-    neighborModule: typeof moduleResult.modules[number],
+    neighborModule: typeof moduleMap.modules[number],
     direction: Direction
 ): boolean {
-    return hasTagTransition(
-        slot.supportModules,
-        module.tag,
-        neighborModule.tag,
+    return slot.neighborContext.hasTransition(
+        module,
+        neighborModule,
         direction
-    ) || hasTagTransition(
-        neighborSlot.supportModules,
-        module.tag,
-        neighborModule.tag,
+    ) || neighborSlot.neighborContext.hasTransition(
+        module,
+        neighborModule,
         direction
     );
-}
-
-function hasTagTransition(
-    modules: ModuleSet,
-    fromTag: string,
-    toTag: string,
-    direction: Direction
-): boolean {
-    for (const contextModule of modules) {
-        if (contextModule.tag !== fromTag) {
-            continue;
-        }
-
-        for (const contextNeighbor of contextModule.possibleNeighbors[direction]) {
-            if (contextNeighbor.tag === toTag) {
-                return true;
-            }
-        }
-    }
-
-    return false;
 }

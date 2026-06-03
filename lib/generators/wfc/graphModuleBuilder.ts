@@ -5,42 +5,41 @@ import { Direction } from "./direction";
 import type { PatternLibrary } from "./graph/patternLibrary";
 import type { SemanticGraph } from "./graph/semanticGraph";
 
-export interface GraphModuleResult {
+export interface GraphModuleMap {
     modules: Module[];
     moduleByGraphNodeId: Map<number, Module>;
+    graphNodeIdByModuleId: Map<number, number>;
 }
 
 export function createGraphModules(
     graph: Graph<string>,
     nodeIds: number[]
-): GraphModuleResult {
+): GraphModuleMap {
+    const moduleByGraphNodeId = new Map<number, Module>();
+    const graphNodeIdByModuleId = new Map<number, number>();
+
     const modules: Module[] = nodeIds.map((nodeId, index) => {
         const node = graph.nodes[nodeId];
 
-        return {
+        const module = {
             id: index,
             tag: node.payload,
-            graphNodeId: node.id,
             possibleNeighbors: [],
             neighborWeights: [],
         };
+
+        moduleByGraphNodeId.set(node.id, module);
+        graphNodeIdByModuleId.set(module.id, node.id);
+
+        return module;
     });
 
     initializeModules(modules);
 
-    const moduleByGraphNodeId = new Map<number, Module>();
-
-    for (const module of modules) {
-        if (module.graphNodeId === undefined) {
-            continue;
-        }
-
-        moduleByGraphNodeId.set(module.graphNodeId, module);
-    }
-
     return {
         modules,
         moduleByGraphNodeId,
+        graphNodeIdByModuleId,
     };
 }
 
@@ -60,9 +59,9 @@ function initializeModules(modules: Module[]): void {
 
 export function createPatternValueModules(
     library: PatternLibrary,
-    patternGraph: SemanticGraph
-): GraphModuleResult {
-    const graph = patternGraph.graph;
+    semanticGraph: SemanticGraph
+): GraphModuleMap {
+    const graph = semanticGraph.graph;
     const rootNode = graph.rootNode;
 
     if (!rootNode) {
@@ -71,10 +70,10 @@ export function createPatternValueModules(
 
     const result = createGraphModules(
         graph,
-        graph.getLeafIds(rootNode.id)
+        graph.getLeafNodeIds(rootNode.id)
     );
 
-    configureNeighbors(library, patternGraph, result.moduleByGraphNodeId);
+    configureNeighbors(library, semanticGraph, result.moduleByGraphNodeId);
 
     return result;
 }
@@ -94,13 +93,13 @@ function getModuleForGraphNode(
 
 function configureNeighbors(
     library: PatternLibrary,
-    patternGraph: SemanticGraph,
+    semanticGraph: SemanticGraph,
     moduleByGraphNodeId: Map<number, Module>
 ): void {
     for (const pattern of library.patterns) {
         for (const patternTag of pattern.tags) {
             const valueIdsBySectionTag =
-                patternGraph.valueIdsByPatternTagAndSectionTag.get(patternTag);
+                semanticGraph.valueIdsByPatternTagAndSectionTag.get(patternTag);
 
             if (!valueIdsBySectionTag) {
                 throw new Error(`Pattern tag "${patternTag}" not found in graph.`);

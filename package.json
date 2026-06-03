@@ -7,9 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "wfc:slots": "tsx ./lib/generators/wfc/smoke/createSlotsSmoke.ts",
-    "wfc:modules": "tsx ./lib/generators/wfc/smoke/createModulesSmoke.ts",
-    "wfc:graph": "tsx ./lib/generators/wfc/smoke/createPatternGraphSmoke.ts",
     "smoke:wfc:semantic-health": "tsx lib/generators/wfc/smoke/createSemanticSlotHealthSmoke.ts"
   },
   "dependencies": {

@@ -1,5 +1,6 @@
 import type { Module } from "./module";
 import { ModuleSet } from "./moduleSet";
+import { NeighborContext } from "./neighborContext";
 
 export class SemanticSlot {
     readonly moduleHealth: number[][];
@@ -9,8 +10,7 @@ export class SemanticSlot {
         readonly nodeId: number,
         allModules: Module[],
         readonly modules: ModuleSet = new ModuleSet(allModules, true),
-        readonly supportNodeIds: number[] = [nodeId],
-        readonly supportModules: ModuleSet = modules
+        readonly neighborContext: NeighborContext = new NeighborContext([null, null], modules)
     ) {
         this.moduleHealth = [
             new Array(allModules.length).fill(0),

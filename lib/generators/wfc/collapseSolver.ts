@@ -1,12 +1,12 @@
 import type { Module } from "./module";
 import { Propagator } from "./propagator";
-import type { Slot } from "./slot";
+import type { SemanticSlot } from "./semanticSlot";
 
 export class CollapseSolver {
     private readonly propagator: Propagator;
 
     constructor(
-        private readonly slots: Slot[],
+        private readonly slots: SemanticSlot[],
         modules: Module[]
     ) {
         this.propagator = new Propagator(slots, modules);
@@ -45,7 +45,7 @@ export class CollapseSolver {
         return bestSlotIndex;
     }
 
-    private pickFirstModule(slot: Slot): Module {
+    private pickFirstModule(slot: SemanticSlot): Module {
         const module = slot.modules.toArray()[0];
 
         if (!module) {

@@ -46,7 +46,7 @@ export class Graph<TPayload> {
         return result;
     }
 
-    getLeafIds(nodeId: number): number[] {
+    getLeafNodeIds(nodeId: number): number[] {
         return this.getLeafNodes(nodeId).map((node) => node.id);
     }
 }

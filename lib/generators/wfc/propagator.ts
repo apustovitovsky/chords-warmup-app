@@ -3,13 +3,13 @@ import type { Module } from "./module";
 import { ModuleSet } from "./moduleSet";
 import { PropagationQueue } from "./propagationQueue";
 import type { RemovalEvent } from "./removalEvent";
-import type { Slot } from "./slot";
+import type { SemanticSlot } from "./semanticSlot";
 
 export class Propagator {
     private readonly queue = new PropagationQueue();
 
     constructor(
-        private readonly slots: Slot[],
+        private readonly slots: SemanticSlot[],
         private readonly modules: Module[]
     ) { }
 
@@ -101,10 +101,6 @@ export class Propagator {
         slotIndex: number,
         direction: Direction
     ): number | null {
-        if (direction === Direction.Back) {
-            return slotIndex > 0 ? slotIndex - 1 : null;
-        }
-
-        return slotIndex < this.slots.length - 1 ? slotIndex + 1 : null;
+        return this.slots[slotIndex].neighborContext.getNeighborIndex(direction);
     }
 }
