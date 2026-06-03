@@ -1,6 +1,7 @@
 import { Direction, oppositeDirection } from "./direction";
 import type { Module } from "./module";
 import { ModuleSet } from "./moduleSet";
+import { hasModuleSupport } from "./moduleSupport";
 import { PropagationQueue } from "./propagationQueue";
 import type { RemovalEvent } from "./removalEvent";
 import type { SemanticSlot } from "./semanticSlot";
@@ -65,25 +66,26 @@ export class Propagator {
             return;
         }
 
+        const slot = this.slots[event.slotIndex];
         const neighbor = this.slots[neighborIndex];
         const neighborDirection = oppositeDirection(direction);
         const modulesToRemove = new ModuleSet(this.modules);
 
         for (const removedModule of event.modules) {
-            for (const possibleNeighbor of removedModule.possibleNeighbors[direction]) {
-                if (!neighbor.modules.contains(possibleNeighbor)) {
+            for (const neighborModule of neighbor.modules) {
+                if (!hasModuleSupport(slot, removedModule, neighbor, neighborModule, direction)) {
                     continue;
                 }
 
-                neighbor.moduleHealth[neighborDirection][possibleNeighbor.id]--;
+                neighbor.moduleHealth[neighborDirection][neighborModule.id]--;
 
-                if (neighbor.moduleHealth[neighborDirection][possibleNeighbor.id] === 0) {
-                    modulesToRemove.add(possibleNeighbor);
+                if (neighbor.moduleHealth[neighborDirection][neighborModule.id] === 0) {
+                    modulesToRemove.add(neighborModule);
                 }
 
-                if (neighbor.moduleHealth[neighborDirection][possibleNeighbor.id] < 0) {
+                if (neighbor.moduleHealth[neighborDirection][neighborModule.id] < 0) {
                     throw new Error(
-                        `Module health became negative for "${possibleNeighbor.tag}".`
+                        `Module health became negative for "${neighborModule.tag}".`
                     );
                 }
             }

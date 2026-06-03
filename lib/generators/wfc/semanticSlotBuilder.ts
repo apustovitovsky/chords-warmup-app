@@ -1,8 +1,8 @@
-import type { Module } from "./module";
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
 import { NeighborContext } from "./neighborContext";
 import { SemanticSlot } from "./semanticSlot";
+import { hasModuleSupport } from "./moduleSupport";
 import type { SemanticGraph } from "./graph/semanticGraph";
 import type { GraphModuleMap } from "./graphModuleBuilder";
 import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
@@ -175,30 +175,12 @@ class SemanticSlotBuilder {
             let health = 0;
 
             for (const neighborModule of neighbor.modules) {
-                if (this.hasSupport(slot, module, neighbor, neighborModule, direction)) {
+                if (hasModuleSupport(slot, module, neighbor, neighborModule, direction)) {
                     health++;
                 }
             }
 
             slot.moduleHealth[direction][module.id] = health;
         }
-    }
-
-    private hasSupport(
-        slot: SemanticSlot,
-        module: Module,
-        neighbor: SemanticSlot,
-        neighborModule: Module,
-        direction: Direction
-    ): boolean {
-        return slot.neighborContext.hasTransition(
-            module,
-            neighborModule,
-            direction
-        ) || neighbor.neighborContext.hasTransition(
-            module,
-            neighborModule,
-            direction
-        );
     }
 }
