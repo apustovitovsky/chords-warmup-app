@@ -1,4 +1,3 @@
-
 export interface SemanticSegmentDefinition {
     patternTag: string;
     sectionTag: string;

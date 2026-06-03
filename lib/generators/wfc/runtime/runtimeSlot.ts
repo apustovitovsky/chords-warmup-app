@@ -1,20 +1,21 @@
-import type { Module } from "./module";
 import { ModuleSet } from "./moduleSet";
-import { NeighborContext } from "./neighborContext";
 
-export class SemanticSlot {
+export interface NeighborContext {
+    slotIndex: number;
+    supportedModules: ModuleSet[];
+}
+
+export class RuntimeSlot {
     readonly moduleHealth: number[][];
     collapsedModuleId: number | null = null;
 
     constructor(
-        readonly nodeId: number,
-        allModules: Module[],
-        readonly modules: ModuleSet = new ModuleSet(allModules, true),
-        readonly neighborContext: NeighborContext = new NeighborContext([null, null], modules)
+        readonly modules: ModuleSet,
+        readonly neighbors: Array<NeighborContext | null>
     ) {
         this.moduleHealth = [
-            new Array(allModules.length).fill(0),
-            new Array(allModules.length).fill(0),
+            new Array(modules.capacity).fill(0),
+            new Array(modules.capacity).fill(0),
         ];
     }
 
@@ -29,38 +30,38 @@ export class SemanticSlot {
         this.modules.removeSet(removedModules);
 
         if (this.modules.empty) {
-            throw new Error("SemanticSlot has no possible modules.");
+            throw new Error("RuntimeSlot has no possible modules.");
         }
 
         return removedModules;
     }
 
-    collapse(module: Module): ModuleSet {
+    collapse(moduleId: number): ModuleSet {
         if (this.collapsed) {
-            throw new Error("SemanticSlot is already collapsed.");
+            throw new Error("RuntimeSlot is already collapsed.");
         }
 
-        if (!this.modules.contains(module)) {
-            throw new Error(`Cannot collapse semantic slot to unavailable module "${module.tag}".`);
+        if (!this.modules.contains(moduleId)) {
+            throw new Error(`Cannot collapse runtime slot to unavailable module "${moduleId}".`);
         }
 
         const modulesToRemove = this.modules.clone();
-        modulesToRemove.remove(module);
+        modulesToRemove.remove(moduleId);
 
         const removedModules = this.removeModules(modulesToRemove);
-        this.collapsedModuleId = module.id;
+        this.collapsedModuleId = moduleId;
 
         return removedModules;
     }
 
-    get resolvedModule(): Module | null {
-        const modules = this.modules.toArray();
+    get resolvedModuleId(): number | null {
+        const moduleIds = this.modules.toIds();
 
-        if (modules.length !== 1) {
+        if (moduleIds.length !== 1) {
             return null;
         }
 
-        return modules[0];
+        return moduleIds[0];
     }
 
     get collapsed(): boolean {

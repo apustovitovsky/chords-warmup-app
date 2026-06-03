@@ -1,7 +1,7 @@
-import type { Module } from "./module";
-import { ModuleSet } from "./moduleSet";
+import type { Module } from "./runtime/module";
+import { ModuleSet } from "./runtime/moduleSet";
 import type { Graph } from "./graph/graph";
-import { Direction } from "./direction";
+import { Direction } from "./runtime/direction";
 import type { PatternLibrary } from "./graph/patternLibrary";
 import type { SemanticGraph } from "./graph/semanticGraph";
 
@@ -9,6 +9,7 @@ export interface GraphModuleMap {
     modules: Module[];
     moduleByGraphNodeId: Map<number, Module>;
     graphNodeIdByModuleId: Map<number, number>;
+    tagByModuleId: string[];
 }
 
 export function createGraphModules(
@@ -17,19 +18,20 @@ export function createGraphModules(
 ): GraphModuleMap {
     const moduleByGraphNodeId = new Map<number, Module>();
     const graphNodeIdByModuleId = new Map<number, number>();
+    const tagByModuleId: string[] = [];
 
     const modules: Module[] = nodeIds.map((nodeId, index) => {
         const node = graph.nodes[nodeId];
 
         const module = {
             id: index,
-            tag: node.payload,
             possibleNeighbors: [],
             neighborWeights: [],
         };
 
         moduleByGraphNodeId.set(node.id, module);
         graphNodeIdByModuleId.set(module.id, node.id);
+        tagByModuleId[module.id] = node.payload;
 
         return module;
     });
@@ -40,14 +42,15 @@ export function createGraphModules(
         modules,
         moduleByGraphNodeId,
         graphNodeIdByModuleId,
+        tagByModuleId,
     };
 }
 
 function initializeModules(modules: Module[]): void {
     for (const module of modules) {
         module.possibleNeighbors = [
-            new ModuleSet(modules),
-            new ModuleSet(modules),
+            new ModuleSet(modules.length),
+            new ModuleSet(modules.length),
         ];
 
         module.neighborWeights = [
@@ -155,10 +158,10 @@ function configureSectionNeighbors(
             moduleByGraphNodeId
         );
 
-        currentModule.possibleNeighbors[Direction.Forward].add(nextModule);
+        currentModule.possibleNeighbors[Direction.Forward].add(nextModule.id);
         currentModule.neighborWeights[Direction.Forward][nextModule.id]++;
 
-        nextModule.possibleNeighbors[Direction.Back].add(currentModule);
+        nextModule.possibleNeighbors[Direction.Back].add(currentModule.id);
         nextModule.neighborWeights[Direction.Back][currentModule.id]++;
     }
 }

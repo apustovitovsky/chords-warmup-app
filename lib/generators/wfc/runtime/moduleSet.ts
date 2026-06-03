@@ -1,17 +1,10 @@
-import type { Module } from "./module";
-
 const bitsPerItem = 32;
 
-export class ModuleSet implements Iterable<Module> {
-    private readonly moduleCount: number;
-    private readonly modules: Module[];
+export class ModuleSet implements Iterable<number> {
     private readonly data: number[];
 
-    constructor(modules: Module[], initializeFull = false) {
-        this.modules = modules;
-        this.moduleCount = modules.length;
-
-        const wordCount = Math.ceil(this.moduleCount / bitsPerItem);
+    constructor(readonly capacity: number, initializeFull = false) {
+        const wordCount = Math.ceil(this.capacity / bitsPerItem);
         this.data = new Array(wordCount).fill(initializeFull ? ~0 : 0);
 
         if (initializeFull) {
@@ -19,11 +12,11 @@ export class ModuleSet implements Iterable<Module> {
         }
     }
 
-    static fromModules(modules: Module[], source: Iterable<Module>): ModuleSet {
-        const result = new ModuleSet(modules);
+    static fromIds(capacity: number, source: Iterable<number>): ModuleSet {
+        const result = new ModuleSet(capacity);
 
-        for (const module of source) {
-            result.add(module);
+        for (const moduleId of source) {
+            result.add(moduleId);
         }
 
         return result;
@@ -44,7 +37,7 @@ export class ModuleSet implements Iterable<Module> {
     }
 
     get full(): boolean {
-        if (this.moduleCount === 0) {
+        if (this.capacity === 0) {
             return true;
         }
 
@@ -59,13 +52,9 @@ export class ModuleSet implements Iterable<Module> {
         return this.data[lastWordIndex] === this.lastWordUsageMask;
     }
 
-    add(module: Module): void {
-        this.addIndex(module.id);
-    }
-
-    addIndex(moduleIndex: number): void {
-        const wordIndex = Math.floor(moduleIndex / bitsPerItem);
-        const mask = 1 << (moduleIndex % bitsPerItem);
+    add(moduleId: number): void {
+        const wordIndex = Math.floor(moduleId / bitsPerItem);
+        const mask = 1 << (moduleId % bitsPerItem);
 
         this.data[wordIndex] |= mask;
     }
@@ -78,13 +67,9 @@ export class ModuleSet implements Iterable<Module> {
         }
     }
 
-    remove(module: Module): boolean {
-        return this.removeIndex(module.id);
-    }
-
-    removeIndex(moduleIndex: number): boolean {
-        const wordIndex = Math.floor(moduleIndex / bitsPerItem);
-        const mask = 1 << (moduleIndex % bitsPerItem);
+    remove(moduleId: number): boolean {
+        const wordIndex = Math.floor(moduleId / bitsPerItem);
+        const mask = 1 << (moduleId % bitsPerItem);
         const value = this.data[wordIndex];
 
         if ((value & mask) === 0) {
@@ -103,13 +88,9 @@ export class ModuleSet implements Iterable<Module> {
         }
     }
 
-    contains(module: Module): boolean {
-        return this.containsIndex(module.id);
-    }
-
-    containsIndex(moduleIndex: number): boolean {
-        const wordIndex = Math.floor(moduleIndex / bitsPerItem);
-        const mask = 1 << (moduleIndex % bitsPerItem);
+    contains(moduleId: number): boolean {
+        const wordIndex = Math.floor(moduleId / bitsPerItem);
+        const mask = 1 << (moduleId % bitsPerItem);
 
         return (this.data[wordIndex] & mask) !== 0;
     }
@@ -135,7 +116,7 @@ export class ModuleSet implements Iterable<Module> {
     }
 
     clone(): ModuleSet {
-        const result = new ModuleSet(this.modules);
+        const result = new ModuleSet(this.capacity);
 
         for (let i = 0; i < this.data.length; i++) {
             result.data[i] = this.data[i];
@@ -144,20 +125,20 @@ export class ModuleSet implements Iterable<Module> {
         return result;
     }
 
-    toArray(): Module[] {
+    toIds(): number[] {
         return [...this];
     }
 
-    *[Symbol.iterator](): Iterator<Module> {
-        for (let moduleIndex = 0; moduleIndex < this.moduleCount; moduleIndex++) {
-            if (this.containsIndex(moduleIndex)) {
-                yield this.modules[moduleIndex];
+    *[Symbol.iterator](): Iterator<number> {
+        for (let moduleId = 0; moduleId < this.capacity; moduleId++) {
+            if (this.contains(moduleId)) {
+                yield moduleId;
             }
         }
     }
 
     private get lastWordUsageMask(): number {
-        const remainder = this.moduleCount % bitsPerItem;
+        const remainder = this.capacity % bitsPerItem;
 
         if (remainder === 0) {
             return ~0;
@@ -175,7 +156,7 @@ export class ModuleSet implements Iterable<Module> {
     }
 
     private assertCompatible(set: ModuleSet): void {
-        if (this.moduleCount !== set.moduleCount) {
+        if (this.capacity !== set.capacity) {
             throw new Error("ModuleSet instances have different module counts.");
         }
     }

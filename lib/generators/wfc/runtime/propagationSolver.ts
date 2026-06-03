@@ -1,26 +1,24 @@
-import { Direction, oppositeDirection } from "./direction";
-import type { Module } from "./module";
+import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import { hasModuleSupport } from "./moduleSupport";
 import { PropagationQueue } from "./propagationQueue";
 import type { RemovalEvent } from "./removalEvent";
-import type { SemanticSlot } from "./semanticSlot";
+import type { RuntimeSlot } from "./runtimeSlot";
 
-export class Propagator {
+export class PropagationSolver {
     private readonly queue = new PropagationQueue();
 
     constructor(
-        private readonly slots: SemanticSlot[],
-        private readonly modules: Module[]
+        private readonly slots: RuntimeSlot[],
+        private readonly moduleCapacity: number
     ) { }
 
     enqueue(event: RemovalEvent): void {
         this.queue.enqueue(event);
     }
 
-    collapse(slotIndex: number, module: Module): void {
+    collapse(slotIndex: number, moduleId: number): void {
         const slot = this.slots[slotIndex];
-        const removedModules = slot.collapse(module);
+        const removedModules = slot.collapse(moduleId);
 
         this.queue.enqueue({
             slotIndex,
@@ -60,32 +58,34 @@ export class Propagator {
         event: RemovalEvent,
         direction: Direction
     ): void {
-        const neighborIndex = this.getNeighborIndex(event.slotIndex, direction);
+        const slot = this.slots[event.slotIndex];
+        const neighborContext = slot.neighbors[direction];
 
-        if (neighborIndex === null) {
+        if (!neighborContext) {
             return;
         }
 
-        const slot = this.slots[event.slotIndex];
-        const neighbor = this.slots[neighborIndex];
-        const neighborDirection = oppositeDirection(direction);
-        const modulesToRemove = new ModuleSet(this.modules);
+        const neighbor = this.slots[neighborContext.slotIndex];
+        const neighborDirection = Direction.opposite(direction);
+        const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
-        for (const removedModule of event.modules) {
-            for (const neighborModule of neighbor.modules) {
-                if (!hasModuleSupport(slot, removedModule, neighbor, neighborModule, direction)) {
+        for (const removedModuleId of event.modules) {
+            const supportedModules = neighborContext.supportedModules[removedModuleId];
+
+            for (const neighborModuleId of supportedModules) {
+                if (!neighbor.modules.contains(neighborModuleId)) {
                     continue;
                 }
 
-                neighbor.moduleHealth[neighborDirection][neighborModule.id]--;
+                neighbor.moduleHealth[neighborDirection][neighborModuleId]--;
 
-                if (neighbor.moduleHealth[neighborDirection][neighborModule.id] === 0) {
-                    modulesToRemove.add(neighborModule);
+                if (neighbor.moduleHealth[neighborDirection][neighborModuleId] === 0) {
+                    modulesToRemove.add(neighborModuleId);
                 }
 
-                if (neighbor.moduleHealth[neighborDirection][neighborModule.id] < 0) {
+                if (neighbor.moduleHealth[neighborDirection][neighborModuleId] < 0) {
                     throw new Error(
-                        `Module health became negative for "${neighborModule.tag}".`
+                        `Module health became negative for "${neighborModuleId}".`
                     );
                 }
             }
@@ -94,15 +94,8 @@ export class Propagator {
         const removedModules = neighbor.removeModules(modulesToRemove);
 
         this.queue.enqueue({
-            slotIndex: neighborIndex,
+            slotIndex: neighborContext.slotIndex,
             modules: removedModules,
         });
-    }
-
-    private getNeighborIndex(
-        slotIndex: number,
-        direction: Direction
-    ): number | null {
-        return this.slots[slotIndex].neighborContext.getNeighborIndex(direction);
     }
 }

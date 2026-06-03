@@ -1,15 +1,14 @@
-import type { Module } from "./module";
-import { Propagator } from "./propagator";
-import type { SemanticSlot } from "./semanticSlot";
+import { PropagationSolver } from "./propagationSolver";
+import type { RuntimeSlot } from "./runtimeSlot";
 
 export class CollapseSolver {
-    private readonly propagator: Propagator;
+    private readonly propagator: PropagationSolver;
 
     constructor(
-        private readonly slots: SemanticSlot[],
-        modules: Module[]
+        private readonly slots: RuntimeSlot[],
+        moduleCapacity: number
     ) {
-        this.propagator = new Propagator(slots, modules);
+        this.propagator = new PropagationSolver(slots, moduleCapacity);
     }
 
     solve(): void {
@@ -17,9 +16,9 @@ export class CollapseSolver {
 
         while (slotIndex !== null) {
             const slot = this.slots[slotIndex];
-            const module = this.pickFirstModule(slot);
+            const moduleId = this.pickFirstModuleId(slot);
 
-            this.propagator.collapse(slotIndex, module);
+            this.propagator.collapse(slotIndex, moduleId);
 
             slotIndex = this.findLowestEntropySlotIndex();
         }
@@ -45,13 +44,13 @@ export class CollapseSolver {
         return bestSlotIndex;
     }
 
-    private pickFirstModule(slot: SemanticSlot): Module {
-        const module = slot.modules.toArray()[0];
+    private pickFirstModuleId(slot: RuntimeSlot): number {
+        const moduleId = slot.modules.toIds()[0];
 
-        if (!module) {
+        if (moduleId === undefined) {
             throw new Error("Cannot pick module from empty slot.");
         }
 
-        return module;
+        return moduleId;
     }
 }

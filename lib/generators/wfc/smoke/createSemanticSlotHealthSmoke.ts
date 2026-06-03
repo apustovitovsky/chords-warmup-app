@@ -1,12 +1,12 @@
-import { Direction } from "../direction";
+import { Direction } from "../runtime/direction";
 import type { Graph } from "../graph/graph";
 import type { PatternLibrary } from "../graph/patternLibrary";
 import { createSemanticGraph } from "../graph/semanticGraph";
 import { createPatternValueModules } from "../graphModuleBuilder";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
 import type { SemanticSegmentDefinition } from "../semanticLayout";
-import { createSemanticSlots } from "../semanticSlotBuilder";
-import type { ModuleSet } from "../moduleSet";
+import { createRuntimeSlots } from "../runtimeSlotBuilder";
+import type { ModuleSet } from "../runtime/moduleSet";
 
 const library: PatternLibrary = {
     patterns: [
@@ -64,7 +64,7 @@ const layout = createSemanticLayout(
     { supportOverlap: 1 }
 );
 
-const slots = createSemanticSlots(
+const slots = createRuntimeSlots(
     layout,
     semanticGraph,
     moduleMap
@@ -75,24 +75,28 @@ console.log("\nsemantic slot health");
 for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
     const slot = slots[slotIndex];
 
-    console.log(`\n${slotIndex}. ${formatGraphPath(graph, slot.nodeId)}`);
-    console.log(`  domain: ${formatModuleTags(slot.modules)}`);
-    console.log(`  support: ${formatModuleTags(slot.neighborContext.modules)}`);
+    console.log(`\n${dim(`${slotIndex}.`)} ${cyan(formatGraphPath(graph, layout.slots[slotIndex].nodeId))}`);
+    console.log(`  ${green("domain")}: ${formatModuleTags(slot.modules)}`);
+    console.log(`  ${dim("support")}: ${formatCompiledSupportTags(slotIndex)}`);
 
-    for (const module of slot.modules) {
-        const backSupport = getSupportedNeighborTags(slotIndex, module, Direction.Back);
-        const forwardSupport = getSupportedNeighborTags(slotIndex, module, Direction.Forward);
+    for (const moduleId of slot.modules) {
+        const backSupport = getSupportedNeighborTags(slotIndex, moduleId, Direction.Back);
+        const forwardSupport = getSupportedNeighborTags(slotIndex, moduleId, Direction.Forward);
 
         console.log(
-            `  ${module.tag}: back=[${backSupport}], forward=[${forwardSupport}]`
+            `  ${formatModuleLabel(moduleId)}: back=[${backSupport}], forward=[${forwardSupport}]`
         );
     }
 }
 
 function formatModuleTags(modules: ModuleSet): string {
-    return modules.toArray()
-        .map((module) => module.tag)
+    return modules.toIds()
+        .map(formatModuleLabel)
         .join(", ") || "-";
+}
+
+function formatModuleLabel(moduleId: number): string {
+    return `${gold(moduleMap.tagByModuleId[moduleId])}${dim(`:${moduleId}`)}`;
 }
 
 function formatGraphPath(graph: Graph<string>, nodeId: number): string {
@@ -116,46 +120,54 @@ function formatGraphPath(graph: Graph<string>, nodeId: number): string {
 
 function getSupportedNeighborTags(
     slotIndex: number,
-    module: typeof moduleMap.modules[number],
+    moduleId: number,
     direction: Direction
 ): string {
     const slot = slots[slotIndex];
+    const neighborContext = slot.neighbors[direction];
 
-    const neighborIndex = slot.neighborContext.getNeighborIndex(direction);
-
-    if (neighborIndex === null) {
-        return "x";
+    if (!neighborContext) {
+        return dim("x");
     }
 
-    const neighborSlot = slots[neighborIndex];
+    return formatModuleTags(neighborContext.supportedModules[moduleId]);
+}
 
-    const supportedTags: string[] = [];
+function formatCompiledSupportTags(slotIndex: number): string {
+    const slot = slots[slotIndex];
+    const support = new Set<string>();
 
-    for (const neighborModule of neighborSlot.modules) {
-        if (
-            supports(slot, module, neighborSlot, neighborModule, direction)
-        ) {
-            supportedTags.push(neighborModule.tag);
+    for (const neighborContext of slot.neighbors) {
+        if (!neighborContext) {
+            continue;
+        }
+
+        for (const supportedModules of neighborContext.supportedModules) {
+            for (const moduleId of supportedModules) {
+                support.add(formatModuleLabel(moduleId));
+            }
         }
     }
 
-    return supportedTags.join(", ") || "-";
+    return [...support].join(", ") || red("-");
 }
 
-function supports(
-    slot: typeof slots[number],
-    module: typeof moduleMap.modules[number],
-    neighborSlot: typeof slots[number],
-    neighborModule: typeof moduleMap.modules[number],
-    direction: Direction
-): boolean {
-    return slot.neighborContext.hasTransition(
-        module,
-        neighborModule,
-        direction
-    ) || neighborSlot.neighborContext.hasTransition(
-        module,
-        neighborModule,
-        direction
-    );
+function cyan(text: string): string {
+    return `\x1b[36m${text}\x1b[0m`;
+}
+
+function green(text: string): string {
+    return `\x1b[32m${text}\x1b[0m`;
+}
+
+function gold(text: string): string {
+    return `\x1b[33m${text}\x1b[0m`;
+}
+
+function red(text: string): string {
+    return `\x1b[31m${text}\x1b[0m`;
+}
+
+function dim(text: string): string {
+    return `\x1b[90m${text}\x1b[0m`;
 }
