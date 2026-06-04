@@ -8,14 +8,14 @@ export const chordPatternLibrary: SemanticHierarchy = {
                 ["genre1", "genre2"],
                 ["intro", "verse"],
             ],
-            values: ["C", "C", "Am", "F"],
+            values: ["C", "Am", "F", "G"],
         },
         {
             levels: [
                 ["genre1", "genre2"],
-                ["verse"],
+                ["intro", "verse"],
             ],
-            values: ["F", "C", "Dm", "Bb"],
+            values: ["F", "C", "Dm", "Am"],
         },
         {
             levels: [
@@ -36,7 +36,7 @@ export const chordPatternLibrary: SemanticHierarchy = {
                 ["genre2", "genre3"],
                 ["chorus"],
             ],
-            values: ["Bb", "C", "Dm", "G"],
+            values: ["Am", "C", "Dm", "G"],
         },
         {
             levels: [

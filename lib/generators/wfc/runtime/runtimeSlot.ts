@@ -36,6 +36,19 @@ export class RuntimeSlot {
         return removedModules;
     }
 
+    addModules(modulesToAdd: ModuleSet): ModuleSet {
+        const addedModules = modulesToAdd.clone();
+        addedModules.exclude(this.modules);
+
+        if (addedModules.empty) {
+            return addedModules;
+        }
+
+        this.modules.addSet(addedModules);
+
+        return addedModules;
+    }
+
     collapse(moduleId: number): ModuleSet {
         if (this.collapsed) {
             throw new Error("RuntimeSlot is already collapsed.");

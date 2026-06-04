@@ -1,5 +1,6 @@
 import { Direction } from "./runtime/direction";
 import { ModuleSet } from "./runtime/moduleSet";
+import { PropagationSolver } from "./runtime/propagationSolver";
 import { RuntimeSlot, type NeighborContext } from "./runtime/runtimeSlot";
 import { SemanticNeighborContext } from "./semanticNeighborContext";
 import type { SemanticModuleIndex } from "./semanticModuleIndex";
@@ -32,6 +33,10 @@ class RuntimeSlotBuilder {
         ));
 
         this.initializeModuleHealth(slots);
+        new PropagationSolver(
+            slots,
+            semanticModuleIndex.modules.length
+        ).enforceConsistency();
 
         return slots;
     }
