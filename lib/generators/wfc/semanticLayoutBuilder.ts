@@ -29,11 +29,7 @@ class SemanticLayoutBuilder {
         let startIndex = 0;
 
         const segments: SemanticLayoutSegment[] = definitions.map((definition) => {
-            const nodeId = this.getSectionNodeId(
-                semanticGraph,
-                definition.patternTag,
-                definition.sectionTag
-            );
+            const nodeId = this.getNodeIdByPath(semanticGraph, definition.path);
 
             const segment = {
                 nodeId,
@@ -105,10 +101,9 @@ class SemanticLayoutBuilder {
         return supportNodeIds;
     }
 
-    private getSectionNodeId(
+    private getNodeIdByPath(
         semanticGraph: SemanticGraph,
-        patternTag: string,
-        sectionTag: string
+        path: string[]
     ): number {
         const rootNode = semanticGraph.graph.rootNode;
 
@@ -116,22 +111,20 @@ class SemanticLayoutBuilder {
             throw new Error("Cannot create semantic layout from an empty graph.");
         }
 
-        const patternNode = semanticGraph.graph
-            .getChildNodes(rootNode.id)
-            .find((node) => node.payload === patternTag);
+        let nodeId = rootNode.id;
 
-        if (!patternNode) {
-            throw new Error(`Pattern tag not found: "${patternTag}".`);
+        for (const segment of path) {
+            const childNode = semanticGraph.graph
+                .getChildNodes(nodeId)
+                .find((node) => node.payload === segment);
+
+            if (!childNode) {
+                throw new Error(`Semantic path not found: "${path.join("/")}".`);
+            }
+
+            nodeId = childNode.id;
         }
 
-        const sectionNode = semanticGraph.graph
-            .getChildNodes(patternNode.id)
-            .find((node) => node.payload === sectionTag);
-
-        if (!sectionNode) {
-            throw new Error(`Section tag "${sectionTag}" not found under pattern tag "${patternTag}".`);
-        }
-
-        return sectionNode.id;
+        return nodeId;
     }
 }

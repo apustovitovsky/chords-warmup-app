@@ -1,12 +1,12 @@
 import { createSemanticGraph } from "../hierarchy/semanticGraph";
-import { createPatternValueModules } from "../graphModuleBuilder";
+import { createSemanticModuleIndex } from "../graphModuleBuilder";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
 import { createRuntimeSlots } from "../runtimeSlotBuilder";
 import { printSemanticHealth } from "./semanticHealthPrinter";
 import { songFormLibrary, songFormSegments } from "./songFormSmokeData";
 
 const semanticGraph = createSemanticGraph(songFormLibrary);
-const moduleIndex = createPatternValueModules(songFormLibrary, semanticGraph);
+const moduleIndex = createSemanticModuleIndex(songFormLibrary, semanticGraph);
 const layout = createSemanticLayout(
     songFormSegments,
     semanticGraph,

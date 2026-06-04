@@ -1,39 +1,41 @@
-import type { PatternLibrary } from "../hierarchy/patternLibrary";
+import type { SemanticHierarchy } from "../hierarchy/semanticHierarchy";
 import type { SemanticSegmentDefinition } from "../semanticLayout";
 
-export const songFormLibrary: PatternLibrary = {
+export const songFormLibrary: SemanticHierarchy = {
     patterns: [
         {
-            tags: ["indie", "folk"],
-            sections: [
-                {
-                    tags: ["form"],
-                    chords: ["intro", "verse", "chorus", "verse", "outro"],
-                },
-                {
-                    tags: ["form"],
-                    chords: ["verse", "chorus", "bridge", "chorus", "outro"],
-                },
+            levels: [
+                ["indie", "folk"],
+                ["form"],
             ],
+            values: ["intro", "verse", "chorus", "verse", "outro"],
         },
         {
-            tags: ["rock", "indie"],
-            sections: [
-                {
-                    tags: ["form"],
-                    chords: ["intro", "verse", "verse", "chorus", "outro"],
-                },
-                {
-                    tags: ["form"],
-                    chords: ["verse", "prechorus", "chorus", "bridge", "chorus"],
-                },
+            levels: [
+                ["indie", "folk"],
+                ["form"],
             ],
+            values: ["verse", "chorus", "bridge", "chorus", "outro"],
+        },
+        {
+            levels: [
+                ["rock", "indie"],
+                ["form"],
+            ],
+            values: ["intro", "verse", "verse", "chorus", "outro"],
+        },
+        {
+            levels: [
+                ["rock", "indie"],
+                ["form"],
+            ],
+            values: ["verse", "prechorus", "chorus", "bridge", "chorus"],
         },
     ],
 };
 
 export const songFormSegments: SemanticSegmentDefinition[] = [
-    { patternTag: "indie", sectionTag: "form", length: 3 },
-    { patternTag: "rock", sectionTag: "form", length: 3 },
-    { patternTag: "folk", sectionTag: "form", length: 2 },
+    { path: ["indie", "form"], length: 3 },
+    { path: ["rock", "form"], length: 3 },
+    { path: ["folk", "form"], length: 2 },
 ];

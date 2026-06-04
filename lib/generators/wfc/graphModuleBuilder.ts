@@ -2,8 +2,11 @@ import type { Module } from "./runtime/module";
 import { ModuleSet } from "./runtime/moduleSet";
 import type { Graph } from "./hierarchy/graph";
 import { Direction } from "./runtime/direction";
-import type { PatternLibrary } from "./hierarchy/patternLibrary";
 import type { SemanticGraph } from "./hierarchy/semanticGraph";
+import {
+    expandSemanticLevels,
+    type SemanticHierarchy,
+} from "./hierarchy/semanticHierarchy";
 import { SemanticModuleIndex } from "./semanticModuleIndex";
 
 interface GraphModuleMap {
@@ -61,8 +64,8 @@ function initializeModules(modules: Module[]): void {
     }
 }
 
-export function createPatternValueModules(
-    library: PatternLibrary,
+export function createSemanticModuleIndex(
+    hierarchy: SemanticHierarchy,
     semanticGraph: SemanticGraph
 ): SemanticModuleIndex {
     const graph = semanticGraph.graph;
@@ -77,7 +80,7 @@ export function createPatternValueModules(
         graph.getLeafNodeIds(rootNode.id)
     );
 
-    configureNeighbors(library, semanticGraph, result.moduleByGraphNodeId);
+    configureNeighbors(hierarchy, semanticGraph, result.moduleByGraphNodeId);
 
     return new SemanticModuleIndex(
         semanticGraph,
@@ -102,66 +105,45 @@ function getModuleForGraphNode(
 }
 
 function configureNeighbors(
-    library: PatternLibrary,
+    hierarchy: SemanticHierarchy,
     semanticGraph: SemanticGraph,
     moduleByGraphNodeId: Map<number, Module>
 ): void {
-    for (const pattern of library.patterns) {
-        for (const patternTag of pattern.tags) {
-            const valueIdsBySectionTag =
-                semanticGraph.valueIdsByPatternTagAndSectionTag.get(patternTag);
-
-            if (!valueIdsBySectionTag) {
-                throw new Error(`Pattern tag "${patternTag}" not found in graph.`);
-            }
-
-            for (const section of pattern.sections) {
-                for (const sectionTag of section.tags) {
-                    const valueIdsByLabel = valueIdsBySectionTag.get(sectionTag);
-
-                    if (!valueIdsByLabel) {
-                        throw new Error(
-                            `Section tag "${sectionTag}" not found for pattern tag "${patternTag}".`
-                        );
-                    }
-
-                    configureSectionNeighbors(
-                        patternTag,
-                        sectionTag,
-                        section.chords,
-                        valueIdsByLabel,
-                        moduleByGraphNodeId
-                    );
-                }
-            }
+    for (const pattern of hierarchy.patterns) {
+        for (const path of expandSemanticLevels(pattern.levels)) {
+            configurePathNeighbors(
+                semanticGraph,
+                path,
+                pattern.values,
+                moduleByGraphNodeId
+            );
         }
     }
 }
 
-function configureSectionNeighbors(
-    patternTag: string,
-    sectionTag: string,
-    chords: string[],
-    valueIdsByLabel: Map<string, number>,
+function configurePathNeighbors(
+    semanticGraph: SemanticGraph,
+    path: string[],
+    values: string[],
     moduleByGraphNodeId: Map<number, Module>
 ): void {
-    for (let index = 0; index < chords.length - 1; index++) {
-        const currentChord = chords[index];
-        const nextChord = chords[index + 1];
+    const pathNodeId = getGraphNodeIdByPath(semanticGraph, path);
+
+    for (let index = 0; index < values.length - 1; index++) {
+        const currentValue = values[index];
+        const nextValue = values[index + 1];
 
         const currentModule = getModuleForValue(
-            patternTag,
-            sectionTag,
-            currentChord,
-            valueIdsByLabel,
+            semanticGraph,
+            pathNodeId,
+            currentValue,
             moduleByGraphNodeId
         );
 
         const nextModule = getModuleForValue(
-            patternTag,
-            sectionTag,
-            nextChord,
-            valueIdsByLabel,
+            semanticGraph,
+            pathNodeId,
+            nextValue,
             moduleByGraphNodeId
         );
 
@@ -174,20 +156,46 @@ function configureSectionNeighbors(
 }
 
 function getModuleForValue(
-    patternTag: string,
-    sectionTag: string,
+    semanticGraph: SemanticGraph,
+    parentNodeId: number,
     value: string,
-    valueIdsByLabel: Map<string, number>,
     moduleByGraphNodeId: Map<number, Module>
 ): Module {
-    const graphNodeId = valueIdsByLabel.get(value);
+    const valueNode = semanticGraph.graph
+        .getChildNodes(parentNodeId)
+        .find((node) => node.payload === value);
 
-    if (graphNodeId === undefined) {
-        throw new Error(
-            `Value "${value}" not found for "${patternTag}/${sectionTag}".`
-        );
+    if (!valueNode) {
+        throw new Error(`Value "${value}" not found in semantic graph.`);
     }
 
-    return getModuleForGraphNode(graphNodeId, moduleByGraphNodeId);
+    return getModuleForGraphNode(valueNode.id, moduleByGraphNodeId);
+}
+
+function getGraphNodeIdByPath(
+    semanticGraph: SemanticGraph,
+    path: string[]
+): number {
+    const rootNode = semanticGraph.graph.rootNode;
+
+    if (!rootNode) {
+        throw new Error("Cannot resolve path from an empty semantic graph.");
+    }
+
+    let nodeId = rootNode.id;
+
+    for (const segment of path) {
+        const childNode = semanticGraph.graph
+            .getChildNodes(nodeId)
+            .find((node) => node.payload === segment);
+
+        if (!childNode) {
+            throw new Error(`Semantic path not found: "${path.join("/")}".`);
+        }
+
+        nodeId = childNode.id;
+    }
+
+    return nodeId;
 }
 

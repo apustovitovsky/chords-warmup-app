@@ -1,59 +1,34 @@
 import type { Graph } from "./graph";
 import { GraphBuilder } from "./graphBuilder";
-import type { PatternLibrary } from "./patternLibrary";
+import {
+    expandSemanticLevels,
+    type SemanticHierarchy,
+} from "./semanticHierarchy";
 
 export interface SemanticGraph {
     graph: Graph<string>;
-    valueIdsByPatternTagAndSectionTag: Map<string, Map<string, Map<string, number>>>
 }
 
-export function createSemanticGraph(library: PatternLibrary): SemanticGraph {
+export function createSemanticGraph(hierarchy: SemanticHierarchy): SemanticGraph {
     const builder = new GraphBuilder<string>();
     const rootId = builder.createNode("root");
 
-    const valueIdsByPatternTagAndSectionTag = new Map<string, Map<string, Map<string, number>>>();
+    for (const pattern of hierarchy.patterns) {
+        for (const path of expandSemanticLevels(pattern.levels)) {
+            let parentId = rootId;
 
-    for (const pattern of library.patterns) {
-        for (const patternTag of pattern.tags) {
-            const patternNodeId = builder.getOrCreateChildNode(rootId, patternTag);
-
-            let valueIdsBySectionTag = valueIdsByPatternTagAndSectionTag.get(patternTag);
-
-            if (!valueIdsBySectionTag) {
-                valueIdsBySectionTag = new Map<string, Map<string, number>>();
-                valueIdsByPatternTagAndSectionTag.set(patternTag, valueIdsBySectionTag);
+            for (const segment of path) {
+                parentId = builder.getOrCreateChildNode(parentId, segment);
             }
 
-            for (const section of pattern.sections) {
-                for (const sectionTag of section.tags) {
-                    const sectionNodeId = builder.getOrCreateChildNode(
-                        patternNodeId,
-                        sectionTag
-                    );
-
-                    let valueIdsByLabel = valueIdsBySectionTag.get(sectionTag);
-
-                    if (!valueIdsByLabel) {
-                        valueIdsByLabel = new Map<string, number>();
-                        valueIdsBySectionTag.set(sectionTag, valueIdsByLabel);
-                    }
-
-                    for (const chord of section.chords) {
-                        const valueNodeId = builder.getOrCreateChildNode(
-                            sectionNodeId,
-                            chord
-                        );
-
-                        valueIdsByLabel.set(chord, valueNodeId);
-                    }
-                }
+            for (const value of pattern.values) {
+                builder.getOrCreateChildNode(parentId, value);
             }
         }
     }
 
     return {
         graph: builder.build(),
-        valueIdsByPatternTagAndSectionTag,
     };
 }
 
