@@ -1,11 +1,12 @@
 import type { Module } from "./runtime/module";
 import { ModuleSet } from "./runtime/moduleSet";
-import type { Graph } from "./graph/graph";
+import type { Graph } from "./hierarchy/graph";
 import { Direction } from "./runtime/direction";
-import type { PatternLibrary } from "./graph/patternLibrary";
-import type { SemanticGraph } from "./graph/semanticGraph";
+import type { PatternLibrary } from "./hierarchy/patternLibrary";
+import type { SemanticGraph } from "./hierarchy/semanticGraph";
+import { SemanticModuleIndex } from "./semanticModuleIndex";
 
-export interface GraphModuleMap {
+interface GraphModuleMap {
     modules: Module[];
     moduleByGraphNodeId: Map<number, Module>;
     graphNodeIdByModuleId: Map<number, number>;
@@ -63,7 +64,7 @@ function initializeModules(modules: Module[]): void {
 export function createPatternValueModules(
     library: PatternLibrary,
     semanticGraph: SemanticGraph
-): GraphModuleMap {
+): SemanticModuleIndex {
     const graph = semanticGraph.graph;
     const rootNode = graph.rootNode;
 
@@ -78,7 +79,13 @@ export function createPatternValueModules(
 
     configureNeighbors(library, semanticGraph, result.moduleByGraphNodeId);
 
-    return result;
+    return new SemanticModuleIndex(
+        semanticGraph,
+        result.modules,
+        result.moduleByGraphNodeId,
+        result.graphNodeIdByModuleId,
+        result.tagByModuleId
+    );
 }
 
 function getModuleForGraphNode(

@@ -2,8 +2,7 @@ import { Direction } from "./runtime/direction";
 import { ModuleSet } from "./runtime/moduleSet";
 import { RuntimeSlot, type NeighborContext } from "./runtime/runtimeSlot";
 import { SemanticNeighborContext } from "./semanticNeighborContext";
-import type { SemanticGraph } from "./graph/semanticGraph";
-import type { GraphModuleMap } from "./graphModuleBuilder";
+import type { SemanticModuleIndex } from "./semanticModuleIndex";
 import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
 
 interface RuntimeSlotDraft {
@@ -14,21 +13,19 @@ interface RuntimeSlotDraft {
 
 export function createRuntimeSlots(
     layout: SemanticLayout,
-    semanticGraph: SemanticGraph,
-    moduleMap: GraphModuleMap
+    semanticModuleIndex: SemanticModuleIndex
 ): RuntimeSlot[] {
     const builder = new RuntimeSlotBuilder();
 
-    return builder.build(layout, semanticGraph, moduleMap);
+    return builder.build(layout, semanticModuleIndex);
 }
 
 class RuntimeSlotBuilder {
     build(
         layout: SemanticLayout,
-        semanticGraph: SemanticGraph,
-        moduleMap: GraphModuleMap
+        semanticModuleIndex: SemanticModuleIndex
     ): RuntimeSlot[] {
-        const drafts = this.createDrafts(layout, semanticGraph, moduleMap);
+        const drafts = this.createDrafts(layout, semanticModuleIndex);
         const slots = drafts.map((draft) => new RuntimeSlot(
             draft.modules,
             this.createNeighborContexts(draft, drafts)
@@ -41,28 +38,18 @@ class RuntimeSlotBuilder {
 
     private createDrafts(
         layout: SemanticLayout,
-        semanticGraph: SemanticGraph,
-        moduleMap: GraphModuleMap
+        semanticModuleIndex: SemanticModuleIndex
     ): RuntimeSlotDraft[] {
         const drafts: RuntimeSlotDraft[] = [];
-        const moduleMaskByNodeId = new Map<number, ModuleSet>();
 
         for (let slotIndex = 0; slotIndex < layout.slots.length; slotIndex++) {
             const slot = layout.slots[slotIndex];
-            const moduleMask = this.getModuleMask(
-                semanticGraph,
-                moduleMap,
-                moduleMaskByNodeId,
-                slot.nodeId
-            );
+            const moduleMask = semanticModuleIndex.getModuleMask(slot.nodeId);
 
             drafts.push({
                 modules: moduleMask.clone(),
                 neighborIndices: this.getNeighborIndices(layout.slots, slotIndex),
-                semanticNeighborContext: this.createSemanticNeighborContext(
-                    semanticGraph,
-                    moduleMap,
-                    moduleMaskByNodeId,
+                semanticNeighborContext: semanticModuleIndex.createNeighborContext(
                     slot.supportNodeIds
                 ),
             });
@@ -179,66 +166,6 @@ class RuntimeSlotBuilder {
         return slot.supportNodeIds.some((nodeId) =>
             neighbor.supportNodeIds.includes(nodeId)
         );
-    }
-
-    private createSemanticNeighborContext(
-        semanticGraph: SemanticGraph,
-        moduleMap: GraphModuleMap,
-        moduleMaskByNodeId: Map<number, ModuleSet>,
-        supportNodeIds: number[]
-    ): SemanticNeighborContext {
-        const neighborModules = new ModuleSet(moduleMap.modules.length);
-
-        for (const nodeId of supportNodeIds) {
-            neighborModules.addSet(this.getModuleMask(
-                semanticGraph,
-                moduleMap,
-                moduleMaskByNodeId,
-                nodeId
-            ));
-        }
-
-        return new SemanticNeighborContext(
-            moduleMap.modules,
-            moduleMap.tagByModuleId,
-            neighborModules
-        );
-    }
-
-    private getModuleMask(
-        semanticGraph: SemanticGraph,
-        moduleMap: GraphModuleMap,
-        moduleMaskByNodeId: Map<number, ModuleSet>,
-        nodeId: number
-    ): ModuleSet {
-        let moduleMask = moduleMaskByNodeId.get(nodeId);
-
-        if (!moduleMask) {
-            moduleMask = this.createModuleMask(semanticGraph, moduleMap, nodeId);
-            moduleMaskByNodeId.set(nodeId, moduleMask);
-        }
-
-        return moduleMask;
-    }
-
-    private createModuleMask(
-        semanticGraph: SemanticGraph,
-        moduleMap: GraphModuleMap,
-        nodeId: number
-    ): ModuleSet {
-        const mask = new ModuleSet(moduleMap.modules.length);
-
-        for (const leafNodeId of semanticGraph.graph.getLeafNodeIds(nodeId)) {
-            const module = moduleMap.moduleByGraphNodeId.get(leafNodeId);
-
-            if (!module) {
-                throw new Error(`Module not found for graph node "${leafNodeId}".`);
-            }
-
-            mask.add(module.id);
-        }
-
-        return mask;
     }
 
     private initializeModuleHealth(slots: RuntimeSlot[]): void {

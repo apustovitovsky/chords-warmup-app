@@ -1,4 +1,4 @@
-import type { SemanticGraph } from "./graph/semanticGraph";
+import type { SemanticGraph } from "./hierarchy/semanticGraph";
 import type {
     SemanticLayout,
     SemanticLayoutSegment,

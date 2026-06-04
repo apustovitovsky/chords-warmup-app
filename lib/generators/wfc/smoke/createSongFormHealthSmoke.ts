@@ -2,20 +2,20 @@ import { createSemanticGraph } from "../hierarchy/semanticGraph";
 import { createPatternValueModules } from "../graphModuleBuilder";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
 import { createRuntimeSlots } from "../runtimeSlotBuilder";
-import { chordPatternLibrary, chordPatternSegments } from "./chordPatternSmokeData";
 import { printSemanticHealth } from "./semanticHealthPrinter";
+import { songFormLibrary, songFormSegments } from "./songFormSmokeData";
 
-const semanticGraph = createSemanticGraph(chordPatternLibrary);
-const moduleIndex = createPatternValueModules(chordPatternLibrary, semanticGraph);
+const semanticGraph = createSemanticGraph(songFormLibrary);
+const moduleIndex = createPatternValueModules(songFormLibrary, semanticGraph);
 const layout = createSemanticLayout(
-    chordPatternSegments,
+    songFormSegments,
     semanticGraph,
     { supportOverlap: 1 }
 );
 const slots = createRuntimeSlots(layout, moduleIndex);
 
 printSemanticHealth(
-    "semantic slot health",
+    "song form health",
     semanticGraph.graph,
     layout,
     moduleIndex,
