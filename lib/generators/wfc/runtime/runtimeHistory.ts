@@ -1,6 +1,6 @@
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import { RingBuffer } from "./ringBuffer";
+import { RingBuffer } from "./helpers/ringBuffer";
 import type { RuntimeSlot } from "./runtimeSlot";
 
 export const defaultRuntimeHistoryCapacity = 3000;

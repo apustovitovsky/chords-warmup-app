@@ -1,4 +1,4 @@
-export class MinHeap<T> {
+export class PriorityQueue<T> {
     private readonly items: T[] = [];
 
     constructor(

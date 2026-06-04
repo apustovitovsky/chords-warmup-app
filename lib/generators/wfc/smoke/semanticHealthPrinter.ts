@@ -42,7 +42,7 @@ export function printSemanticHealth(
     }
 }
 
-function formatModuleTags(
+export function formatModuleTags(
     moduleIndex: SemanticModuleIndex,
     modules: ModuleSet
 ): string {
@@ -51,14 +51,14 @@ function formatModuleTags(
         .join(", ") || red("-");
 }
 
-function formatModuleLabel(
+export function formatModuleLabel(
     moduleIndex: SemanticModuleIndex,
     moduleId: number
 ): string {
     return `${gold(moduleIndex.tagByModuleId[moduleId])}${dim(`:${moduleId}`)}`;
 }
 
-function formatGraphPath(graph: Graph<string>, nodeId: number): string {
+export function formatGraphPath(graph: Graph<string>, nodeId: number): string {
     const parts: string[] = [];
     let currentNode = graph.nodes[nodeId];
 

@@ -1,7 +1,7 @@
 import { createSemanticGraph } from "../hierarchy/semanticGraph";
 import type { Graph } from "../hierarchy/graph";
 import { createSemanticModuleIndex } from "../graphModuleBuilder";
-import { createRuntimeSlots } from "../runtimeSlotBuilder";
+import { createRuntimeData } from "../runtime/runtimeCompiler";
 import { RuntimeHistory } from "../runtime/runtimeHistory";
 import { PropagationSolver } from "../runtime/propagationSolver";
 import type { ModuleSet } from "../runtime/moduleSet";
@@ -21,11 +21,12 @@ const layout = createSemanticLayout(
     semanticGraph,
     { supportOverlap: 1 }
 );
-const slots = createRuntimeSlots(layout, moduleIndex);
+const runtimeData = createRuntimeData(layout, moduleIndex);
+const slots = runtimeData.slots;
 const history = new RuntimeHistory(moduleIndex.modules.length);
+new PropagationSolver(runtimeData).enforceConsistency();
 const propagator = new PropagationSolver(
-    slots,
-    moduleIndex.modules.length,
+    runtimeData,
     history
 );
 const beforeSnapshot = createRuntimeSnapshot(slots);

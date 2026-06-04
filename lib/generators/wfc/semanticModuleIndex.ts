@@ -11,7 +11,8 @@ export class SemanticModuleIndex {
         readonly modules: Module[],
         readonly moduleByGraphNodeId: Map<number, Module>,
         readonly graphNodeIdByModuleId: Map<number, number>,
-        readonly tagByModuleId: string[]
+        readonly tagByModuleId: string[],
+        readonly moduleWeightById: number[]
     ) { }
 
     getModuleMask(nodeId: number): ModuleSet {

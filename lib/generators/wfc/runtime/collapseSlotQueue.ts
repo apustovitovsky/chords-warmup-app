@@ -1,5 +1,5 @@
-import { MinHeap } from "./minHeap";
-import type { ModuleWeights } from "./moduleWeights";
+import { PriorityQueue } from "./helpers/priorityQueue";
+import type { RuntimeData } from "./runtimeData";
 import type { RuntimeSlot } from "./runtimeSlot";
 
 interface CollapseSlotQueueEntry {
@@ -9,16 +9,15 @@ interface CollapseSlotQueueEntry {
 }
 
 export class CollapseSlotQueue {
-    private readonly heap = new MinHeap<CollapseSlotQueueEntry>(
+    private readonly heap = new PriorityQueue<CollapseSlotQueueEntry>(
         compareCollapseSlotQueueEntries
     );
     private readonly versions: number[];
+    private readonly slots: RuntimeSlot[];
 
-    constructor(
-        private readonly slots: RuntimeSlot[],
-        private readonly moduleStats: ModuleWeights
-    ) {
-        this.versions = new Array(slots.length).fill(0);
+    constructor(private readonly runtimeData: RuntimeData) {
+        this.slots = runtimeData.slots;
+        this.versions = new Array(this.slots.length).fill(0);
     }
 
     initialize(): void {
@@ -72,8 +71,9 @@ export class CollapseSlotQueue {
         let sumWeightLogWeight = 0;
 
         for (const moduleId of slot.modules) {
-            sumWeight += this.moduleStats.weights[moduleId];
-            sumWeightLogWeight += this.moduleStats.weightLogWeights[moduleId];
+            sumWeight += this.runtimeData.moduleWeights.weights[moduleId];
+            sumWeightLogWeight +=
+                this.runtimeData.moduleWeights.weightLogWeights[moduleId];
         }
 
         return Math.log(sumWeight) - sumWeightLogWeight / sumWeight;

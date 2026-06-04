@@ -14,6 +14,7 @@ interface GraphModuleMap {
     moduleByGraphNodeId: Map<number, Module>;
     graphNodeIdByModuleId: Map<number, number>;
     tagByModuleId: string[];
+    moduleWeightById: number[];
 }
 
 export function createGraphModules(
@@ -23,6 +24,7 @@ export function createGraphModules(
     const moduleByGraphNodeId = new Map<number, Module>();
     const graphNodeIdByModuleId = new Map<number, number>();
     const tagByModuleId: string[] = [];
+    const moduleWeightById: number[] = [];
 
     const modules: Module[] = nodeIds.map((nodeId, index) => {
         const node = graph.nodes[nodeId];
@@ -36,6 +38,7 @@ export function createGraphModules(
         moduleByGraphNodeId.set(node.id, module);
         graphNodeIdByModuleId.set(module.id, node.id);
         tagByModuleId[module.id] = node.payload;
+        moduleWeightById[module.id] = 0;
 
         return module;
     });
@@ -47,6 +50,7 @@ export function createGraphModules(
         moduleByGraphNodeId,
         graphNodeIdByModuleId,
         tagByModuleId,
+        moduleWeightById,
     };
 }
 
@@ -80,14 +84,15 @@ export function createSemanticModuleIndex(
         graph.getLeafNodeIds(rootNode.id)
     );
 
-    configureNeighbors(hierarchy, semanticGraph, result.moduleByGraphNodeId);
+    configureNeighbors(hierarchy, semanticGraph, result);
 
     return new SemanticModuleIndex(
         semanticGraph,
         result.modules,
         result.moduleByGraphNodeId,
         result.graphNodeIdByModuleId,
-        result.tagByModuleId
+        result.tagByModuleId,
+        result.moduleWeightById
     );
 }
 
@@ -107,7 +112,7 @@ function getModuleForGraphNode(
 function configureNeighbors(
     hierarchy: SemanticHierarchy,
     semanticGraph: SemanticGraph,
-    moduleByGraphNodeId: Map<number, Module>
+    result: GraphModuleMap
 ): void {
     for (const pattern of hierarchy.patterns) {
         for (const path of expandSemanticLevels(pattern.levels)) {
@@ -115,7 +120,7 @@ function configureNeighbors(
                 semanticGraph,
                 path,
                 pattern.values,
-                moduleByGraphNodeId
+                result
             );
         }
     }
@@ -125,9 +130,20 @@ function configurePathNeighbors(
     semanticGraph: SemanticGraph,
     path: string[],
     values: string[],
-    moduleByGraphNodeId: Map<number, Module>
+    result: GraphModuleMap
 ): void {
     const pathNodeId = getGraphNodeIdByPath(semanticGraph, path);
+
+    for (const value of values) {
+        const module = getModuleForValue(
+            semanticGraph,
+            pathNodeId,
+            value,
+            result.moduleByGraphNodeId
+        );
+
+        result.moduleWeightById[module.id]++;
+    }
 
     for (let index = 0; index < values.length - 1; index++) {
         const currentValue = values[index];
@@ -137,14 +153,14 @@ function configurePathNeighbors(
             semanticGraph,
             pathNodeId,
             currentValue,
-            moduleByGraphNodeId
+            result.moduleByGraphNodeId
         );
 
         const nextModule = getModuleForValue(
             semanticGraph,
             pathNodeId,
             nextValue,
-            moduleByGraphNodeId
+            result.moduleByGraphNodeId
         );
 
         currentModule.possibleNeighbors[Direction.Forward].add(nextModule.id);

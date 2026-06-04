@@ -1,10 +1,11 @@
-import { Direction } from "./runtime/direction";
-import { ModuleSet } from "./runtime/moduleSet";
-import { PropagationSolver } from "./runtime/propagationSolver";
-import { RuntimeSlot, type NeighborContext } from "./runtime/runtimeSlot";
-import { SemanticNeighborContext } from "./semanticNeighborContext";
-import type { SemanticModuleIndex } from "./semanticModuleIndex";
-import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
+import { Direction } from "./direction";
+import { ModuleSet } from "./moduleSet";
+import { createModuleWeights } from "./moduleWeights";
+import type { RuntimeData } from "./runtimeData";
+import { RuntimeSlot, type NeighborContext } from "./runtimeSlot";
+import { SemanticNeighborContext } from "../semanticNeighborContext";
+import type { SemanticModuleIndex } from "../semanticModuleIndex";
+import type { SemanticLayout, SemanticLayoutSlot } from "../semanticLayout";
 
 interface RuntimeSlotDraft {
     modules: ModuleSet;
@@ -16,29 +17,38 @@ export function createRuntimeSlots(
     layout: SemanticLayout,
     semanticModuleIndex: SemanticModuleIndex
 ): RuntimeSlot[] {
-    const builder = new RuntimeSlotBuilder();
-
-    return builder.build(layout, semanticModuleIndex);
+    return createRuntimeData(layout, semanticModuleIndex).slots;
 }
 
-class RuntimeSlotBuilder {
+export function createRuntimeData(
+    layout: SemanticLayout,
+    semanticModuleIndex: SemanticModuleIndex
+): RuntimeData {
+    const compiler = new RuntimeCompiler();
+
+    return compiler.build(layout, semanticModuleIndex);
+}
+
+class RuntimeCompiler {
     build(
         layout: SemanticLayout,
         semanticModuleIndex: SemanticModuleIndex
-    ): RuntimeSlot[] {
+    ): RuntimeData {
         const drafts = this.createDrafts(layout, semanticModuleIndex);
         const slots = drafts.map((draft) => new RuntimeSlot(
             draft.modules,
             this.createNeighborContexts(draft, drafts)
         ));
+        const runtimeData = {
+            slots,
+            moduleWeights: createModuleWeights(
+                semanticModuleIndex.moduleWeightById
+            ),
+        };
 
         this.initializeModuleHealth(slots);
-        new PropagationSolver(
-            slots,
-            semanticModuleIndex.modules.length
-        ).enforceConsistency();
 
-        return slots;
+        return runtimeData;
     }
 
     private createDrafts(

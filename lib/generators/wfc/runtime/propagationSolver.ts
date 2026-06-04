@@ -1,26 +1,29 @@
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import { PropagationQueue } from "./propagationQueue";
-import type { RemovalEvent } from "./removalEvent";
+import { RemovalQueue } from "./removalQueue";
 import type { RuntimeHistory } from "./runtimeHistory";
+import type { RuntimeData } from "./runtimeData";
 import type { RuntimeSlot } from "./runtimeSlot";
 
 export class PropagationSolver {
-    private readonly queue = new PropagationQueue();
+    private readonly queue: RemovalQueue;
+    private readonly moduleCapacity: number;
 
     constructor(
-        private readonly slots: RuntimeSlot[],
-        private readonly moduleCapacity: number,
+        private readonly runtimeData: RuntimeData,
         private readonly history: RuntimeHistory | null = null
-    ) { }
+    ) {
+        this.moduleCapacity = runtimeData.moduleWeights.weights.length;
+        this.queue = new RemovalQueue(this.moduleCapacity);
+    }
 
-    enqueue(event: RemovalEvent): void {
-        this.queue.enqueue(event);
+    enqueue(slotIndex: number, modules: ModuleSet): void {
+        this.queue.enqueue(slotIndex, modules);
     }
 
     collapse(slotIndex: number, moduleId: number): number[] {
         const changedSlotIndices = new Set<number>();
-        const slot = this.slots[slotIndex];
+        const slot = this.runtimeData.slots[slotIndex];
         this.history?.beginStep(
             slotIndex,
             slot.collapsedModuleId,
@@ -31,11 +34,7 @@ export class PropagationSolver {
         this.history?.recordRemoval(slotIndex, removedModules);
         changedSlotIndices.add(slotIndex);
 
-        this.queue.enqueue({
-            slotIndex,
-            modules: removedModules,
-        });
-
+        this.propagateRemovedModules(slotIndex, removedModules);
         this.propagate(true, changedSlotIndices);
 
         return [...changedSlotIndices];
@@ -44,16 +43,15 @@ export class PropagationSolver {
     enforceConsistency(): number[] {
         const changedSlotIndices = new Set<number>();
 
-        for (let slotIndex = 0; slotIndex < this.slots.length; slotIndex++) {
-            const slot = this.slots[slotIndex];
+        for (
+            let slotIndex = 0;
+            slotIndex < this.runtimeData.slots.length;
+            slotIndex++
+        ) {
+            const slot = this.runtimeData.slots[slotIndex];
             const modulesToRemove = this.getUnsupportedModules(slot);
 
-            this.removeAndEnqueue(
-                slotIndex,
-                modulesToRemove,
-                false,
-                changedSlotIndices
-            );
+            this.queue.enqueue(slotIndex, modulesToRemove);
         }
 
         this.propagate(false, changedSlotIndices);
@@ -68,7 +66,12 @@ export class PropagationSolver {
         let event = this.queue.dequeue();
 
         while (event !== null) {
-            this.propagateRemoval(event, recordHistory, changedSlotIndices);
+            this.propagateRemoval(
+                event.slotIndex,
+                event.modules,
+                recordHistory,
+                changedSlotIndices
+            );
             event = this.queue.dequeue();
         }
 
@@ -78,12 +81,7 @@ export class PropagationSolver {
     removeModules(slotIndex: number, modulesToRemove: ModuleSet): number[] {
         const changedSlotIndices = new Set<number>();
 
-        this.removeAndEnqueue(
-            slotIndex,
-            modulesToRemove,
-            true,
-            changedSlotIndices
-        );
+        this.queue.enqueue(slotIndex, modulesToRemove);
         this.propagate(true, changedSlotIndices);
 
         return [...changedSlotIndices];
@@ -113,7 +111,7 @@ export class PropagationSolver {
         modulesToRemove: ModuleSet,
         recordHistory: boolean
     ): ModuleSet {
-        const slot = this.slots[slotIndex];
+        const slot = this.runtimeData.slots[slotIndex];
         const removedModules = slot.removeModules(modulesToRemove);
 
         if (recordHistory) {
@@ -123,7 +121,7 @@ export class PropagationSolver {
         return removedModules;
     }
 
-    private removeAndEnqueue(
+    private propagateRemoval(
         slotIndex: number,
         modulesToRemove: ModuleSet,
         recordHistory: boolean,
@@ -140,50 +138,42 @@ export class PropagationSolver {
         }
 
         changedSlotIndices.add(slotIndex);
+        this.propagateRemovedModules(slotIndex, removedModules);
+    }
 
-        this.queue.enqueue({
+    private propagateRemovedModules(
+        slotIndex: number,
+        removedModules: ModuleSet
+    ): void {
+        this.propagateRemovedModulesToNeighbor(
             slotIndex,
-            modules: removedModules,
-        });
-    }
-
-    private propagateRemoval(
-        event: RemovalEvent,
-        recordHistory: boolean,
-        changedSlotIndices: Set<number>
-    ): void {
-        this.propagateRemovalToNeighbor(
-            event,
-            Direction.Back,
-            recordHistory,
-            changedSlotIndices
+            removedModules,
+            Direction.Back
         );
-        this.propagateRemovalToNeighbor(
-            event,
-            Direction.Forward,
-            recordHistory,
-            changedSlotIndices
+        this.propagateRemovedModulesToNeighbor(
+            slotIndex,
+            removedModules,
+            Direction.Forward
         );
     }
 
-    private propagateRemovalToNeighbor(
-        event: RemovalEvent,
-        direction: Direction,
-        recordHistory: boolean,
-        changedSlotIndices: Set<number>
+    private propagateRemovedModulesToNeighbor(
+        slotIndex: number,
+        removedModules: ModuleSet,
+        direction: Direction
     ): void {
-        const slot = this.slots[event.slotIndex];
+        const slot = this.runtimeData.slots[slotIndex];
         const neighborContext = slot.neighbors[direction];
 
         if (!neighborContext) {
             return;
         }
 
-        const neighbor = this.slots[neighborContext.slotIndex];
+        const neighbor = this.runtimeData.slots[neighborContext.slotIndex];
         const neighborDirection = Direction.opposite(direction);
         const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
-        for (const removedModuleId of event.modules) {
+        for (const removedModuleId of removedModules) {
             const supportedModules = neighborContext.supportedModules[removedModuleId];
 
             for (const neighborModuleId of supportedModules) {
@@ -204,11 +194,6 @@ export class PropagationSolver {
             }
         }
 
-        this.removeAndEnqueue(
-            neighborContext.slotIndex,
-            modulesToRemove,
-            recordHistory,
-            changedSlotIndices
-        );
+        this.queue.enqueue(neighborContext.slotIndex, modulesToRemove);
     }
 }

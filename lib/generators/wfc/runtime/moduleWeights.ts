@@ -4,10 +4,15 @@ export interface ModuleWeights {
 }
 
 export function createModuleWeights(
-    capacity: number
+    weights: number[]
 ): ModuleWeights {
+    const normalizedWeights = weights.map((weight) => Math.max(weight, 1));
+
     return {
-        weights: new Array(capacity).fill(1),
-        weightLogWeights: new Array(capacity).fill(0),
+        weights: normalizedWeights,
+        weightLogWeights: normalizedWeights.map((weight) =>
+            weight * Math.log(weight)
+        ),
     };
 }
+

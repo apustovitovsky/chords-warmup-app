@@ -5,6 +5,12 @@ export interface NeighborContext {
     supportedModules: ModuleSet[];
 }
 
+export interface NeighborData {
+    slotIndex: number;
+    supportedModules: ModuleSet[];
+    transitionWeights: number[][];
+}
+
 export class RuntimeSlot {
     readonly moduleHealth: number[][];
     collapsedModuleId: number | null = null;

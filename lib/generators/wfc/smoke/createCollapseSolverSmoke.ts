@@ -1,25 +1,29 @@
 import { createSemanticGraph } from "../hierarchy/semanticGraph";
 import { CollapseSlotQueue } from "../runtime/collapseSlotQueue";
 import { CollapseSolver } from "../runtime/collapseSolver";
-import { MinHeap } from "../runtime/minHeap";
+import { PriorityQueue } from "../runtime/helpers/priorityQueue";
 import { ModuleSet } from "../runtime/moduleSet";
-import { createModuleWeights } from "../runtime/moduleWeights";
+import {
+    createModuleWeights,
+    type ModuleWeights,
+} from "../runtime/moduleWeights";
+import type { RuntimeData } from "../runtime/runtimeData";
 import { RuntimeSlot } from "../runtime/runtimeSlot";
 import { createSemanticModuleIndex } from "../graphModuleBuilder";
-import { createRuntimeSlots } from "../runtimeSlotBuilder";
+import { createRuntimeData } from "../runtime/runtimeCompiler";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
 import { chordPatternLibrary, chordPatternSegments } from "./chordPatternSmokeData";
 
 console.log("\ncollapse solver smoke");
 
-assertMinHeapOrder();
+assertPriorityQueueOrder();
 assertCollapseSlotQueueLazyUpdate();
 assertCollapseSolverResolvesSlots();
 
 console.log(`\n${green("collapse solver smoke passed")}`);
 
-function assertMinHeapOrder(): void {
-    const heap = new MinHeap<number>((lhs, rhs) => lhs - rhs);
+function assertPriorityQueueOrder(): void {
+    const heap = new PriorityQueue<number>((lhs, rhs) => lhs - rhs);
 
     heap.push(3);
     heap.push(1);
@@ -34,13 +38,13 @@ function assertMinHeapOrder(): void {
 
 function assertCollapseSlotQueueLazyUpdate(): void {
     const moduleCapacity = 4;
-    const stats = createModuleWeights(moduleCapacity);
+    const stats = createModuleWeights(new Array(moduleCapacity).fill(1));
     const slots = [
         createRuntimeSlot(moduleCapacity, [0]),
         createRuntimeSlot(moduleCapacity, [0, 1, 2]),
         createRuntimeSlot(moduleCapacity, [0, 1]),
     ];
-    const queue = new CollapseSlotQueue(slots, stats);
+    const queue = new CollapseSlotQueue(createRuntimeDataForTest(slots, stats));
 
     queue.initialize();
 
@@ -66,22 +70,25 @@ function assertCollapseSolverResolvesSlots(): void {
         semanticGraph,
         { supportOverlap: 1 }
     );
-    const slots = createRuntimeSlots(layout, moduleIndex);
-    const solver = new CollapseSolver(
-        slots,
-        moduleIndex.modules.length,
-        createModuleWeights(moduleIndex.modules.length)
-    );
+    const runtimeData = createRuntimeData(layout, moduleIndex);
+    const solver = new CollapseSolver(runtimeData);
 
     solver.solve();
 
-    const unresolvedSlotIndex = slots.findIndex((slot) =>
+    const unresolvedSlotIndex = runtimeData.slots.findIndex((slot) =>
         slot.resolvedModuleId === null
     );
 
     if (unresolvedSlotIndex !== -1) {
         throw new Error(`Slot "${unresolvedSlotIndex}" was not resolved.`);
     }
+}
+
+function createRuntimeDataForTest(
+    slots: RuntimeSlot[],
+    moduleWeights: ModuleWeights
+): RuntimeData {
+    return { slots, moduleWeights };
 }
 
 function createRuntimeSlot(
