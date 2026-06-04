@@ -43,7 +43,7 @@ let step = 1;
 let slotIndex = queue.nextSlotIndex();
 
 while (slotIndex !== null) {
-    const moduleId = pickModuleByWeight(slotIndex);
+    const moduleId = pickFirstModule(slotIndex);
     const changedSlotIndices = propagator.collapse(slotIndex, moduleId);
     const historyItem = history.peek();
 
@@ -71,16 +71,12 @@ while (slotIndex !== null) {
 
 console.log(`\n${green("collapse pipeline complete")}`);
 
-function pickModuleByWeight(slotIndex: number): number {
+function pickFirstModule(slotIndex: number): number {
     const slot = slots[slotIndex];
     let result: number | null = null;
 
     for (const moduleId of slot.modules) {
-        if (
-            result === null ||
-            runtimeData.moduleWeights.weights[moduleId] >
-            runtimeData.moduleWeights.weights[result]
-        ) {
+        if (result === null) {
             result = moduleId;
         }
     }

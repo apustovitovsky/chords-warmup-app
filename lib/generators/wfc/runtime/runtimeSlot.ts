@@ -3,12 +3,8 @@ import { ModuleSet } from "./moduleSet";
 export interface NeighborContext {
     slotIndex: number;
     supportedModules: ModuleSet[];
-}
-
-export interface NeighborData {
-    slotIndex: number;
-    supportedModules: ModuleSet[];
     transitionWeights: number[][];
+    transitionPLogP: number[][];
 }
 
 export class RuntimeSlot {

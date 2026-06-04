@@ -3,10 +3,6 @@ import { CollapseSlotQueue } from "../runtime/collapseSlotQueue";
 import { CollapseSolver } from "../runtime/collapseSolver";
 import { PriorityQueue } from "../runtime/helpers/priorityQueue";
 import { ModuleSet } from "../runtime/moduleSet";
-import {
-    createModuleWeights,
-    type ModuleWeights,
-} from "../runtime/moduleWeights";
 import type { RuntimeData } from "../runtime/runtimeData";
 import { RuntimeSlot } from "../runtime/runtimeSlot";
 import { createSemanticModuleIndex } from "../graphModuleBuilder";
@@ -38,13 +34,15 @@ function assertPriorityQueueOrder(): void {
 
 function assertCollapseSlotQueueLazyUpdate(): void {
     const moduleCapacity = 4;
-    const stats = createModuleWeights(new Array(moduleCapacity).fill(1));
     const slots = [
         createRuntimeSlot(moduleCapacity, [0]),
         createRuntimeSlot(moduleCapacity, [0, 1, 2]),
         createRuntimeSlot(moduleCapacity, [0, 1]),
     ];
-    const queue = new CollapseSlotQueue(createRuntimeDataForTest(slots, stats));
+    const queue = new CollapseSlotQueue(createRuntimeDataForTest(
+        slots,
+        moduleCapacity
+    ));
 
     queue.initialize();
 
@@ -86,9 +84,9 @@ function assertCollapseSolverResolvesSlots(): void {
 
 function createRuntimeDataForTest(
     slots: RuntimeSlot[],
-    moduleWeights: ModuleWeights
+    moduleCapacity: number
 ): RuntimeData {
-    return { slots, moduleWeights };
+    return { slots, moduleCapacity };
 }
 
 function createRuntimeSlot(

@@ -67,16 +67,7 @@ export class CollapseSlotQueue {
     }
 
     private calculateEntropy(slot: RuntimeSlot): number {
-        let sumWeight = 0;
-        let sumWeightLogWeight = 0;
-
-        for (const moduleId of slot.modules) {
-            sumWeight += this.runtimeData.moduleWeights.weights[moduleId];
-            sumWeightLogWeight +=
-                this.runtimeData.moduleWeights.weightLogWeights[moduleId];
-        }
-
-        return Math.log(sumWeight) - sumWeightLogWeight / sumWeight;
+        return Math.log(slot.moduleCount);
     }
 }
 

@@ -1,6 +1,5 @@
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import { createModuleWeights } from "./moduleWeights";
 import type { RuntimeData } from "./runtimeData";
 import { RuntimeSlot, type NeighborContext } from "./runtimeSlot";
 import { SemanticNeighborContext } from "../semanticNeighborContext";
@@ -41,9 +40,7 @@ class RuntimeCompiler {
         ));
         const runtimeData = {
             slots,
-            moduleWeights: createModuleWeights(
-                semanticModuleIndex.moduleWeightById
-            ),
+            moduleCapacity: semanticModuleIndex.modules.length,
         };
 
         this.initializeModuleHealth(slots);

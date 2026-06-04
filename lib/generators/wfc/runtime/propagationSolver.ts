@@ -13,7 +13,7 @@ export class PropagationSolver {
         private readonly runtimeData: RuntimeData,
         private readonly history: RuntimeHistory | null = null
     ) {
-        this.moduleCapacity = runtimeData.moduleWeights.weights.length;
+        this.moduleCapacity = runtimeData.moduleCapacity;
         this.queue = new RemovalQueue(this.moduleCapacity);
     }
 

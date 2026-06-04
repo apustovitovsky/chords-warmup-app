@@ -19,7 +19,7 @@ export class CollapseSolver {
 
         while (slotIndex !== null) {
             const slot = this.runtimeData.slots[slotIndex];
-            const moduleId = this.pickModuleByWeight(slot);
+            const moduleId = this.pickFirstModule(slot);
             const changedSlotIndices = this.propagator.collapse(
                 slotIndex,
                 moduleId
@@ -31,15 +31,11 @@ export class CollapseSolver {
         }
     }
 
-    private pickModuleByWeight(slot: RuntimeSlot): number {
+    private pickFirstModule(slot: RuntimeSlot): number {
         let result: number | null = null;
 
         for (const moduleId of slot.modules) {
-            if (
-                result === null ||
-                this.runtimeData.moduleWeights.weights[moduleId] >
-                    this.runtimeData.moduleWeights.weights[result]
-            ) {
+            if (result === null) {
                 result = moduleId;
             }
         }

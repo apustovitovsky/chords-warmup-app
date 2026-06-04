@@ -14,7 +14,6 @@ interface GraphModuleMap {
     moduleByGraphNodeId: Map<number, Module>;
     graphNodeIdByModuleId: Map<number, number>;
     tagByModuleId: string[];
-    moduleWeightById: number[];
 }
 
 export function createGraphModules(
@@ -24,7 +23,6 @@ export function createGraphModules(
     const moduleByGraphNodeId = new Map<number, Module>();
     const graphNodeIdByModuleId = new Map<number, number>();
     const tagByModuleId: string[] = [];
-    const moduleWeightById: number[] = [];
 
     const modules: Module[] = nodeIds.map((nodeId, index) => {
         const node = graph.nodes[nodeId];
@@ -32,13 +30,11 @@ export function createGraphModules(
         const module = {
             id: index,
             possibleNeighbors: [],
-            neighborWeights: [],
         };
 
         moduleByGraphNodeId.set(node.id, module);
         graphNodeIdByModuleId.set(module.id, node.id);
         tagByModuleId[module.id] = node.payload;
-        moduleWeightById[module.id] = 0;
 
         return module;
     });
@@ -50,7 +46,6 @@ export function createGraphModules(
         moduleByGraphNodeId,
         graphNodeIdByModuleId,
         tagByModuleId,
-        moduleWeightById,
     };
 }
 
@@ -59,11 +54,6 @@ function initializeModules(modules: Module[]): void {
         module.possibleNeighbors = [
             new ModuleSet(modules.length),
             new ModuleSet(modules.length),
-        ];
-
-        module.neighborWeights = [
-            new Array(modules.length).fill(0),
-            new Array(modules.length).fill(0),
         ];
     }
 }
@@ -91,8 +81,7 @@ export function createSemanticModuleIndex(
         result.modules,
         result.moduleByGraphNodeId,
         result.graphNodeIdByModuleId,
-        result.tagByModuleId,
-        result.moduleWeightById
+        result.tagByModuleId
     );
 }
 
@@ -134,17 +123,6 @@ function configurePathNeighbors(
 ): void {
     const pathNodeId = getGraphNodeIdByPath(semanticGraph, path);
 
-    for (const value of values) {
-        const module = getModuleForValue(
-            semanticGraph,
-            pathNodeId,
-            value,
-            result.moduleByGraphNodeId
-        );
-
-        result.moduleWeightById[module.id]++;
-    }
-
     for (let index = 0; index < values.length - 1; index++) {
         const currentValue = values[index];
         const nextValue = values[index + 1];
@@ -164,10 +142,8 @@ function configurePathNeighbors(
         );
 
         currentModule.possibleNeighbors[Direction.Forward].add(nextModule.id);
-        currentModule.neighborWeights[Direction.Forward][nextModule.id]++;
 
         nextModule.possibleNeighbors[Direction.Back].add(currentModule.id);
-        nextModule.neighborWeights[Direction.Back][currentModule.id]++;
     }
 }
 
