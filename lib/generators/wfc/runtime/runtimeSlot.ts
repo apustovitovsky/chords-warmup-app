@@ -4,7 +4,6 @@ export interface NeighborContext {
     slotIndex: number;
     supportedModules: ModuleSet[];
     transitionWeights: number[][];
-    transitionPLogP: number[][];
 }
 
 export class RuntimeSlot {

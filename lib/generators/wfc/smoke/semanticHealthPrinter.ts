@@ -89,7 +89,11 @@ function getSupportedNeighborTags(
         return dim("x");
     }
 
-    return formatModuleTags(moduleIndex, neighborContext.supportedModules[moduleId]);
+    return formatWeightedModuleTags(
+        moduleIndex,
+        neighborContext.supportedModules[moduleId],
+        neighborContext.transitionWeights[moduleId]
+    );
 }
 
 function formatCompiledSupportTags(
@@ -111,6 +115,18 @@ function formatCompiledSupportTags(
     }
 
     return [...support].join(", ") || red("-");
+}
+
+function formatWeightedModuleTags(
+    moduleIndex: SemanticModuleIndex,
+    modules: ModuleSet,
+    weights: number[]
+): string {
+    return modules.toIds()
+        .map((moduleId) =>
+            `${formatModuleLabel(moduleIndex, moduleId)}${dim(`(w=${weights[moduleId]})`)}`
+        )
+        .join(", ") || red("-");
 }
 
 function cyan(text: string): string {

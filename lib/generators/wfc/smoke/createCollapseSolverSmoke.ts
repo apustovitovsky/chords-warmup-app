@@ -1,5 +1,5 @@
 import { createSemanticGraph } from "../hierarchy/semanticGraph";
-import { CollapseSlotQueue } from "../runtime/collapseSlotQueue";
+import { CollapseQueue } from "../runtime/collapseQueue";
 import { CollapseSolver } from "../runtime/collapseSolver";
 import { PriorityQueue } from "../runtime/helpers/priorityQueue";
 import { ModuleSet } from "../runtime/moduleSet";
@@ -39,7 +39,7 @@ function assertCollapseSlotQueueLazyUpdate(): void {
         createRuntimeSlot(moduleCapacity, [0, 1, 2]),
         createRuntimeSlot(moduleCapacity, [0, 1]),
     ];
-    const queue = new CollapseSlotQueue(createRuntimeDataForTest(
+    const queue = new CollapseQueue(createRuntimeDataForTest(
         slots,
         moduleCapacity
     ));

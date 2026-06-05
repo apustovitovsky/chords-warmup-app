@@ -1,6 +1,7 @@
 import { createSemanticGraph } from "../hierarchy/semanticGraph";
 import { createSemanticModuleIndex } from "../graphModuleBuilder";
-import { CollapseSlotQueue } from "../runtime/collapseSlotQueue";
+import { CollapseQueue } from "../runtime/collapseQueue";
+import { CollapseSolver } from "../runtime/collapseSolver";
 import { PropagationSolver } from "../runtime/propagationSolver";
 import { RuntimeHistory, type RuntimeHistoryItem } from "../runtime/runtimeHistory";
 import { createRuntimeData } from "../runtime/runtimeCompiler";
@@ -24,7 +25,8 @@ const runtimeData = createRuntimeData(layout, moduleIndex);
 const slots = runtimeData.slots;
 const history = new RuntimeHistory(moduleIndex.modules.length);
 const propagator = new PropagationSolver(runtimeData, history);
-const queue = new CollapseSlotQueue(runtimeData);
+const queue = new CollapseQueue(runtimeData);
+const solver = new CollapseSolver(runtimeData);
 
 console.log("\ncollapse pipeline smoke");
 
@@ -43,13 +45,14 @@ let step = 1;
 let slotIndex = queue.nextSlotIndex();
 
 while (slotIndex !== null) {
-    const moduleId = pickFirstModule(slotIndex);
+    const moduleId = solver.pickModule(slotIndex);
     const changedSlotIndices = propagator.collapse(slotIndex, moduleId);
     const historyItem = history.peek();
 
     console.log(
         `\n${green(`collapse step ${step}`)}: ${formatSlotPath(slotIndex)} -> ${formatModuleLabel(moduleIndex, moduleId)}`
     );
+    console.log(`  ${dim("transition weight")}: ${solver.calculateModuleWeight(slotIndex, moduleId)}`);
 
     if (historyItem) {
         printHistoryDiff(historyItem);
@@ -70,23 +73,6 @@ while (slotIndex !== null) {
 }
 
 console.log(`\n${green("collapse pipeline complete")}`);
-
-function pickFirstModule(slotIndex: number): number {
-    const slot = slots[slotIndex];
-    let result: number | null = null;
-
-    for (const moduleId of slot.modules) {
-        if (result === null) {
-            result = moduleId;
-        }
-    }
-
-    if (result === null) {
-        throw new Error(`Cannot pick module from empty slot "${slotIndex}".`);
-    }
-
-    return result;
-}
 
 function printHistoryDiff(item: RuntimeHistoryItem): void {
     console.log(`  ${dim("selected")}: ${formatModuleLabel(moduleIndex, item.collapsedModuleId)}`);

@@ -12,6 +12,11 @@ interface RuntimeSlotDraft {
     semanticNeighborContext: SemanticNeighborContext;
 }
 
+interface CompiledNeighborSupport {
+    supportedModules: ModuleSet[];
+    transitionWeights: number[][];
+}
+
 export function createRuntimeSlots(
     layout: SemanticLayout,
     semanticModuleIndex: SemanticModuleIndex
@@ -93,7 +98,7 @@ class RuntimeCompiler {
 
         return {
             slotIndex: neighborIndex,
-            supportedModules: this.createSupportedModules(
+            ...this.createCompiledNeighborSupport(
                 draft,
                 drafts[neighborIndex],
                 direction
@@ -101,24 +106,38 @@ class RuntimeCompiler {
         };
     }
 
-    private createSupportedModules(
+    private createCompiledNeighborSupport(
         draft: RuntimeSlotDraft,
         neighbor: RuntimeSlotDraft,
         direction: Direction
-    ): ModuleSet[] {
+    ): CompiledNeighborSupport {
         const supportedModules = this.createEmptyModuleSets(draft.modules);
+        const transitionWeights = this.createEmptyTransitionWeights(draft.modules);
 
         for (const moduleId of draft.modules) {
             const supported = supportedModules[moduleId];
+            const weights = transitionWeights[moduleId];
 
             for (const neighborModuleId of neighbor.modules) {
-                if (this.hasSupport(draft, moduleId, neighbor, neighborModuleId, direction)) {
+                const weight = this.getTransitionWeight(
+                    draft,
+                    moduleId,
+                    neighbor,
+                    neighborModuleId,
+                    direction
+                );
+
+                if (weight > 0) {
                     supported.add(neighborModuleId);
+                    weights[neighborModuleId] = weight;
                 }
             }
         }
 
-        return supportedModules;
+        return {
+            supportedModules,
+            transitionWeights,
+        };
     }
 
     private createEmptyModuleSets(source: ModuleSet): ModuleSet[] {
@@ -133,18 +152,28 @@ class RuntimeCompiler {
         return result;
     }
 
-    private hasSupport(
+    private createEmptyTransitionWeights(source: ModuleSet): number[][] {
+        const result: number[][] = [];
+
+        for (let moduleId = 0; moduleId < source.capacity; moduleId++) {
+            result[moduleId] = new Array(source.capacity).fill(0);
+        }
+
+        return result;
+    }
+
+    private getTransitionWeight(
         draft: RuntimeSlotDraft,
         moduleId: number,
         neighbor: RuntimeSlotDraft,
         neighborModuleId: number,
         direction: Direction
-    ): boolean {
-        return draft.semanticNeighborContext.hasTransition(
+    ): number {
+        return draft.semanticNeighborContext.getTransitionWeight(
             moduleId,
             neighborModuleId,
             direction
-        ) || neighbor.semanticNeighborContext.hasTransition(
+        ) + neighbor.semanticNeighborContext.getTransitionWeight(
             moduleId,
             neighborModuleId,
             direction
