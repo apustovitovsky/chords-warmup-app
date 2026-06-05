@@ -1,47 +1,42 @@
 import { CollapseQueue } from "./collapseQueue";
 import { PropagationSolver } from "./propagationSolver";
 import type { RuntimeData } from "./runtimeData";
-import type { RuntimeSlot } from "./runtimeSlot";
-import { calculateModuleTransitionWeight } from "./transitionWeight";
 
 export class CollapseSolver {
-    private readonly propagator: PropagationSolver;
-    private readonly queue: CollapseQueue;
-    private readonly slots: RuntimeSlot[];
+    private readonly propagationSolver: PropagationSolver;
+    private readonly collapseQueue: CollapseQueue;
 
     constructor(runtimeData: RuntimeData) {
-        this.slots = runtimeData.slots;
-        this.propagator = new PropagationSolver(runtimeData);
-        this.queue = new CollapseQueue(runtimeData);
+        this.propagationSolver = new PropagationSolver(runtimeData);
+        this.collapseQueue = new CollapseQueue(runtimeData);
     }
 
     solve(): void {
-        this.propagator.enforceConsistency();
-        this.queue.initialize();
+        this.propagationSolver.enforceConsistency();
+        this.collapseQueue.initialize();
 
-        let slotIndex = this.queue.nextSlotIndex();
+        let candidate = this.collapseQueue.nextCandidate();
 
-        while (slotIndex !== null) {
-            const moduleId = this.pickModule(slotIndex);
-            const changedSlotIndices = this.propagator.collapse(
-                slotIndex,
+        while (candidate !== null) {
+            const moduleId = this.pickModule(candidate);
+            const changedSlotIndices = this.propagationSolver.collapse(
+                candidate.slotIndex,
                 moduleId
             );
 
-            this.queue.updateMany(changedSlotIndices);
-
-            slotIndex = this.queue.nextSlotIndex();
+            this.collapseQueue.updateMany(changedSlotIndices);
+            candidate = this.collapseQueue.nextCandidate();
         }
     }
 
-    pickModule(slotIndex: number): number {
-        const slot = this.slots[slotIndex];
+    pickModule(candidate: {
+        slotIndex: number,
+        moduleWeights: Map<number, number>
+    }): number {
         let bestModuleId: number | null = null;
         let bestWeight = -1;
 
-        for (const moduleId of slot.modules) {
-            const weight = this.calculateModuleWeight(slotIndex, moduleId);
-
+        for (const [moduleId, weight] of candidate.moduleWeights) {
             if (
                 bestModuleId === null ||
                 weight > bestWeight ||
@@ -53,18 +48,9 @@ export class CollapseSolver {
         }
 
         if (bestModuleId === null) {
-            throw new Error(`Cannot pick module from empty slot "${slotIndex}".`);
+            throw new Error(`Cannot pick module from empty slot "${candidate.slotIndex}".`);
         }
 
         return bestModuleId;
-    }
-
-    // For smoke ts only
-    calculateModuleWeight(slotIndex: number, moduleId: number): number {
-        return calculateModuleTransitionWeight(
-            this.slots,
-            slotIndex,
-            moduleId
-        );
     }
 }

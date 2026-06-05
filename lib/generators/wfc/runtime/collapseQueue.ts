@@ -6,6 +6,7 @@ interface CollapseQueueEntry {
     slotIndex: number;
     entropy: number;
     version: number;
+    moduleWeights: Map<number, number>;
 }
 
 export class CollapseQueue {
@@ -40,14 +41,35 @@ export class CollapseQueue {
             return;
         }
 
+        const moduleWeights = this.calculateModuleWeights(slotIndex);
+        const entropy = this.calculateEntropy(slot, moduleWeights);
+
         this.entropyQueue.push({
             slotIndex,
-            entropy: this.calculateEntropy(slotIndex),
+            entropy,
             version,
+            moduleWeights,
         });
     }
 
-    nextSlotIndex(): number | null {
+    private calculateModuleWeights(slotIndex: number): Map<number, number> {
+        const result = new Map<number, number>();
+        const slot = this.slots[slotIndex];
+
+        for (const moduleId of slot.modules) {
+            result.set(
+                moduleId,
+                calculateModuleTransitionWeight(this.slots, slotIndex, moduleId)
+            );
+        }
+
+        return result;
+    }
+
+    nextCandidate(): {
+        slotIndex: number,
+        moduleWeights: Map<number, number>,
+    } | null {
         let entry = this.entropyQueue.pop();
 
         while (entry !== null) {
@@ -57,7 +79,10 @@ export class CollapseQueue {
                 entry.version === this.versions[entry.slotIndex] &&
                 slot.moduleCount > 1
             ) {
-                return entry.slotIndex;
+                return {
+                    slotIndex: entry.slotIndex,
+                    moduleWeights: entry.moduleWeights,
+                };
             }
 
             entry = this.entropyQueue.pop();
@@ -66,18 +91,14 @@ export class CollapseQueue {
         return null;
     }
 
-    private calculateEntropy(slotIndex: number): number {
-        const slot = this.slots[slotIndex];
+    private calculateEntropy(
+        slot: RuntimeSlot,
+        moduleWeights: Map<number, number>
+    ): number {
         let sumWeight = 0;
         let sumWeightLogWeight = 0;
 
-        for (const moduleId of slot.modules) {
-            const weight = calculateModuleTransitionWeight(
-                this.slots,
-                slotIndex,
-                moduleId
-            );
-
+        for (const weight of moduleWeights.values()) {
             if (weight <= 0) {
                 continue;
             }

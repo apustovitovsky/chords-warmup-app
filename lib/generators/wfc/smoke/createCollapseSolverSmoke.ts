@@ -50,9 +50,10 @@ function assertCollapseSlotQueueLazyUpdate(): void {
     slots[1].removeModules(modulesToRemove);
     queue.update(1);
 
-    const slotIndex = queue.nextSlotIndex();
+    const candidate = queue.nextCandidate();
+    const slotIndex = candidate?.slotIndex;
 
-    if (slotIndex !== 1) {
+    if (slotIndex === undefined || slotIndex !== 1) {
         throw new Error(`CollapseSlotQueue expected slot "1", got "${slotIndex}".`);
     }
 }

@@ -42,17 +42,18 @@ printSemanticHealth(
 );
 
 let step = 1;
-let slotIndex = queue.nextSlotIndex();
+let candidate = queue.nextCandidate();
 
-while (slotIndex !== null) {
-    const moduleId = solver.pickModule(slotIndex);
+while (candidate !== null) {
+    const moduleId = solver.pickModule(candidate);
+    const slotIndex = candidate.slotIndex;
     const changedSlotIndices = propagator.collapse(slotIndex, moduleId);
     const historyItem = history.peek();
 
     console.log(
         `\n${green(`collapse step ${step}`)}: ${formatSlotPath(slotIndex)} -> ${formatModuleLabel(moduleIndex, moduleId)}`
     );
-    console.log(`  ${dim("transition weight")}: ${solver.calculateModuleWeight(slotIndex, moduleId)}`);
+    // console.log(`  ${dim("transition weight")}: ${calculateModuleTransitionWeight(slotIndex, moduleId)}`);
 
     if (historyItem) {
         printHistoryDiff(historyItem);
@@ -68,7 +69,7 @@ while (slotIndex !== null) {
     );
 
     queue.updateMany(changedSlotIndices);
-    slotIndex = queue.nextSlotIndex();
+    candidate = queue.nextCandidate();
     step++;
 }
 
