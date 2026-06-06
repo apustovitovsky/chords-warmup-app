@@ -1,7 +1,8 @@
 import type { Graph } from "../hierarchy/graph";
 import type { SemanticLayout } from "../semanticLayout";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
-import type { RuntimeEdge, RuntimeGraph } from "../runtime/runtimeGraph";
+import type { RuntimeEdge } from "../runtime/runtimeEdge";
+import type { RuntimeGraph } from "../runtime/runtimeGraph";
 import type { ModuleSet } from "../runtime/moduleSet";
 
 export function printSemanticHealth(

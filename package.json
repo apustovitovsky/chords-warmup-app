@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "smoke:wfc:propagation-trace": "tsx lib/generators/wfc/smoke/createPropagationTraceSmoke.ts",
-    "smoke:wfc:collapse-pipeline": "tsx lib/generators/wfc/smoke/createCollapsePipelineSmoke.ts"
+    "smoke:wfc:collapse-pipeline": "tsx lib/generators/wfc/smoke/createCollapsePipelineSmoke.ts",
+    "smoke:wfc:multipass": "tsx lib/generators/wfc/multipass/createMultipassSmoke.ts"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
