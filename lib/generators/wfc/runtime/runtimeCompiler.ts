@@ -1,15 +1,22 @@
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import type { RuntimeData } from "./runtimeData";
-import { RuntimeSlot, type NeighborContext } from "./runtimeSlot";
+import type { RuntimeGraph, RuntimeNeighbor } from "./runtimeGraph";
+import { RuntimeNode } from "./runtimeNode";
 import { SemanticNeighborContext } from "../semanticNeighborContext";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
 import type { SemanticLayout, SemanticLayoutSlot } from "../semanticLayout";
 
-interface RuntimeSlotDraft {
+interface RuntimeNodeDraft {
     modules: ModuleSet;
     neighborIndices: Array<number | null>;
     semanticNeighborContext: SemanticNeighborContext;
+}
+
+interface RuntimeNeighborDraft {
+    nodeIndex: number;
+    direction: Direction;
+    supportedModules: ModuleSet[];
+    transitionWeights: number[][];
 }
 
 interface CompiledNeighborSupport {
@@ -17,17 +24,10 @@ interface CompiledNeighborSupport {
     transitionWeights: number[][];
 }
 
-export function createRuntimeSlots(
+export function createRuntimeGraph(
     layout: SemanticLayout,
     semanticModuleIndex: SemanticModuleIndex
-): RuntimeSlot[] {
-    return createRuntimeData(layout, semanticModuleIndex).slots;
-}
-
-export function createRuntimeData(
-    layout: SemanticLayout,
-    semanticModuleIndex: SemanticModuleIndex
-): RuntimeData {
+): RuntimeGraph {
     const compiler = new RuntimeCompiler();
 
     return compiler.build(layout, semanticModuleIndex);
@@ -37,37 +37,41 @@ class RuntimeCompiler {
     build(
         layout: SemanticLayout,
         semanticModuleIndex: SemanticModuleIndex
-    ): RuntimeData {
+    ): RuntimeGraph {
         const drafts = this.createDrafts(layout, semanticModuleIndex);
-        const slots = drafts.map((draft) => new RuntimeSlot(
+        const neighborDrafts = this.createNeighborDrafts(drafts);
+        const neighbors = this.createNeighbors(neighborDrafts);
+        const nodes = drafts.map((draft, nodeIndex) => new RuntimeNode(
             draft.modules,
-            this.createNeighborContexts(draft, drafts)
+            neighbors[nodeIndex].length
         ));
-        const runtimeData = {
-            slots,
+        const runtimeGraph = {
+            nodes,
+            neighbors,
+            order: nodes.map((_, nodeIndex) => nodeIndex),
             moduleCapacity: semanticModuleIndex.modules.length,
         };
 
-        this.initializeModuleHealth(slots);
+        this.initializeModuleHealth(runtimeGraph);
 
-        return runtimeData;
+        return runtimeGraph;
     }
 
     private createDrafts(
         layout: SemanticLayout,
         semanticModuleIndex: SemanticModuleIndex
-    ): RuntimeSlotDraft[] {
-        const drafts: RuntimeSlotDraft[] = [];
+    ): RuntimeNodeDraft[] {
+        const drafts: RuntimeNodeDraft[] = [];
 
-        for (let slotIndex = 0; slotIndex < layout.slots.length; slotIndex++) {
-            const slot = layout.slots[slotIndex];
-            const moduleMask = semanticModuleIndex.getModuleMask(slot.nodeId);
+        for (let nodeIndex = 0; nodeIndex < layout.slots.length; nodeIndex++) {
+            const layoutSlot = layout.slots[nodeIndex];
+            const moduleMask = semanticModuleIndex.getModuleMask(layoutSlot.nodeId);
 
             drafts.push({
                 modules: moduleMask.clone(),
-                neighborIndices: this.getNeighborIndices(layout.slots, slotIndex),
+                neighborIndices: this.getNeighborIndices(layout.slots, nodeIndex),
                 semanticNeighborContext: semanticModuleIndex.createNeighborContext(
-                    slot.supportNodeIds
+                    layoutSlot.supportNodeIds
                 ),
             });
         }
@@ -75,40 +79,70 @@ class RuntimeCompiler {
         return drafts;
     }
 
-    private createNeighborContexts(
-        draft: RuntimeSlotDraft,
-        drafts: RuntimeSlotDraft[]
-    ): Array<NeighborContext | null> {
-        return [
-            this.createNeighborContext(draft, drafts, Direction.Back),
-            this.createNeighborContext(draft, drafts, Direction.Forward),
-        ];
+    private createNeighborDrafts(drafts: RuntimeNodeDraft[]): RuntimeNeighborDraft[][] {
+        return drafts.map((draft) => {
+            const neighborDrafts: RuntimeNeighborDraft[] = [];
+
+            for (const direction of [Direction.Back, Direction.Forward]) {
+                const nodeIndex = draft.neighborIndices[direction];
+
+                if (nodeIndex === null) {
+                    continue;
+                }
+
+                neighborDrafts.push({
+                    nodeIndex,
+                    direction,
+                    ...this.createCompiledNeighborSupport(
+                        draft,
+                        drafts[nodeIndex],
+                        direction
+                    ),
+                });
+            }
+
+            return neighborDrafts;
+        });
     }
 
-    private createNeighborContext(
-        draft: RuntimeSlotDraft,
-        drafts: RuntimeSlotDraft[],
-        direction: Direction
-    ): NeighborContext | null {
-        const neighborIndex = draft.neighborIndices[direction];
+    private createNeighbors(
+        neighborDrafts: RuntimeNeighborDraft[][]
+    ): RuntimeNeighbor[][] {
+        return neighborDrafts.map((nodeNeighborDrafts, sourceNodeIndex) =>
+            nodeNeighborDrafts.map((neighborDraft) => ({
+                nodeIndex: neighborDraft.nodeIndex,
+                reverseNeighborIndex: this.getReverseNeighborIndex(
+                    neighborDrafts,
+                    sourceNodeIndex,
+                    neighborDraft.nodeIndex
+                ),
+                supportedModules: neighborDraft.supportedModules,
+                transitionWeights: neighborDraft.transitionWeights,
+            }))
+        );
+    }
 
-        if (neighborIndex === null) {
-            return null;
+    private getReverseNeighborIndex(
+        neighborDrafts: RuntimeNeighborDraft[][],
+        sourceNodeIndex: number,
+        targetNodeIndex: number
+    ): number {
+        const reverseNeighborIndex = neighborDrafts[targetNodeIndex].findIndex(
+            (neighborDraft) => neighborDraft.nodeIndex === sourceNodeIndex
+        );
+
+        if (reverseNeighborIndex < 0) {
+            throw new Error(
+                `Runtime neighbor "${sourceNodeIndex}" -> "${targetNodeIndex}" has no reverse edge.`
+            );
         }
 
-        return {
-            slotIndex: neighborIndex,
-            ...this.createCompiledNeighborSupport(
-                draft,
-                drafts[neighborIndex],
-                direction
-            ),
-        };
+        return reverseNeighborIndex;
     }
 
     private createCompiledNeighborSupport(
-        draft: RuntimeSlotDraft,
-        neighbor: RuntimeSlotDraft,
+        draft: RuntimeNodeDraft,
+        neighbor: RuntimeNodeDraft,
         direction: Direction
     ): CompiledNeighborSupport {
         const supportedModules = this.createEmptyModuleSets(draft.modules);
@@ -163,9 +197,9 @@ class RuntimeCompiler {
     }
 
     private getTransitionWeight(
-        draft: RuntimeSlotDraft,
+        draft: RuntimeNodeDraft,
         moduleId: number,
-        neighbor: RuntimeSlotDraft,
+        neighbor: RuntimeNodeDraft,
         neighborModuleId: number,
         direction: Direction
     ): number {
@@ -209,40 +243,39 @@ class RuntimeCompiler {
         );
     }
 
-    private initializeModuleHealth(slots: RuntimeSlot[]): void {
-        for (const slot of slots) {
-            this.initializeModuleHealthForDirection(slot, slots, Direction.Back);
-            this.initializeModuleHealthForDirection(slot, slots, Direction.Forward);
+    private initializeModuleHealth(runtimeGraph: RuntimeGraph): void {
+        for (let nodeIndex = 0; nodeIndex < runtimeGraph.nodes.length; nodeIndex++) {
+            this.initializeModuleHealthForNode(runtimeGraph, nodeIndex);
         }
     }
 
-    private initializeModuleHealthForDirection(
-        slot: RuntimeSlot,
-        slots: RuntimeSlot[],
-        direction: Direction
+    private initializeModuleHealthForNode(
+        runtimeGraph: RuntimeGraph,
+        nodeIndex: number
     ): void {
-        const neighborContext = slot.neighbors[direction];
+        const node = runtimeGraph.nodes[nodeIndex];
+        const neighbors = runtimeGraph.neighbors[nodeIndex];
 
-        if (!neighborContext) {
-            return;
-        }
+        for (let neighborIndex = 0; neighborIndex < neighbors.length; neighborIndex++) {
+            const neighborContext = neighbors[neighborIndex];
+            const neighbor = runtimeGraph.nodes[neighborContext.nodeIndex];
+            const reverseNeighborContext =
+                runtimeGraph.neighbors[neighborContext.nodeIndex][neighborContext.reverseNeighborIndex];
 
-        const neighbor = slots[neighborContext.slotIndex];
-        const neighborDirection = Direction.opposite(direction);
+            for (const moduleId of node.modules) {
+                let health = 0;
 
-        for (const moduleId of slot.modules) {
-            let health = 0;
+                for (const neighborModuleId of neighbor.modules) {
+                    const neighborSupports =
+                        reverseNeighborContext.supportedModules[neighborModuleId];
 
-            for (const neighborModuleId of neighbor.modules) {
-                const neighborSupports =
-                    neighbor.neighbors[neighborDirection]?.supportedModules[neighborModuleId];
-
-                if (neighborSupports?.contains(moduleId)) {
-                    health++;
+                    if (neighborSupports.contains(moduleId)) {
+                        health++;
+                    }
                 }
-            }
 
-            slot.moduleHealth[direction][moduleId] = health;
+                node.moduleHealth[neighborIndex][moduleId] = health;
+            }
         }
     }
 }

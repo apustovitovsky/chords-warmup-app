@@ -1,23 +1,17 @@
 import { ModuleSet } from "./moduleSet";
 
-export interface NeighborContext {
-    slotIndex: number;
-    supportedModules: ModuleSet[];
-    transitionWeights: number[][];
-}
-
-export class RuntimeSlot {
+export class RuntimeNode {
     readonly moduleHealth: number[][];
     collapsedModuleId: number | null = null;
 
     constructor(
         readonly modules: ModuleSet,
-        readonly neighbors: Array<NeighborContext | null>
+        neighborCount: number
     ) {
-        this.moduleHealth = [
-            new Array(modules.capacity).fill(0),
-            new Array(modules.capacity).fill(0),
-        ];
+        this.moduleHealth = Array.from(
+            { length: neighborCount },
+            () => new Array(modules.capacity).fill(0)
+        );
     }
 
     removeModules(modulesToRemove: ModuleSet): ModuleSet {
@@ -31,7 +25,7 @@ export class RuntimeSlot {
         this.modules.removeSet(removedModules);
 
         if (this.modules.empty) {
-            throw new Error("RuntimeSlot has no possible modules.");
+            throw new Error("RuntimeNode has no possible modules.");
         }
 
         return removedModules;
@@ -52,11 +46,11 @@ export class RuntimeSlot {
 
     collapse(moduleId: number): ModuleSet {
         if (this.collapsed) {
-            throw new Error("RuntimeSlot is already collapsed.");
+            throw new Error("RuntimeNode is already collapsed.");
         }
 
         if (!this.modules.contains(moduleId)) {
-            throw new Error(`Cannot collapse runtime slot to unavailable module "${moduleId}".`);
+            throw new Error(`Cannot collapse runtime node to unavailable module "${moduleId}".`);
         }
 
         const modulesToRemove = this.modules.clone();

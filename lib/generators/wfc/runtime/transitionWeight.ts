@@ -1,19 +1,14 @@
-import type { RuntimeSlot } from "./runtimeSlot";
+import type { RuntimeGraph } from "./runtimeGraph";
 
 export function calculateModuleTransitionWeight(
-    slots: RuntimeSlot[],
-    slotIndex: number,
+    runtimeGraph: RuntimeGraph,
+    nodeIndex: number,
     moduleId: number
 ): number {
-    const slot = slots[slotIndex];
     let result = 0;
 
-    for (const neighborContext of slot.neighbors) {
-        if (!neighborContext) {
-            continue;
-        }
-
-        const neighbor = slots[neighborContext.slotIndex];
+    for (const neighborContext of runtimeGraph.neighbors[nodeIndex]) {
+        const neighbor = runtimeGraph.nodes[neighborContext.nodeIndex];
         const transitionWeights = neighborContext.transitionWeights[moduleId];
 
         for (const neighborModuleId of neighbor.modules) {

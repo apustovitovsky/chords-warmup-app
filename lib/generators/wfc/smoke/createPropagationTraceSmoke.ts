@@ -1,11 +1,12 @@
 import { createSemanticGraph } from "../hierarchy/semanticGraph";
 import type { Graph } from "../hierarchy/graph";
 import { createSemanticModuleIndex } from "../graphModuleBuilder";
-import { createRuntimeData } from "../runtime/runtimeCompiler";
+import { createRuntimeGraph } from "../runtime/runtimeCompiler";
 import { RuntimeHistory } from "../runtime/runtimeHistory";
 import { PropagationSolver } from "../runtime/propagationSolver";
 import type { ModuleSet } from "../runtime/moduleSet";
-import type { RuntimeSlot } from "../runtime/runtimeSlot";
+import type { RuntimeGraph } from "../runtime/runtimeGraph";
+import type { RuntimeNode } from "../runtime/runtimeNode";
 import type { SemanticLayout } from "../semanticLayout";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
@@ -21,25 +22,25 @@ const layout = createSemanticLayout(
     semanticGraph,
     { supportOverlap: 1 }
 );
-const runtimeData = createRuntimeData(layout, moduleIndex);
-const slots = runtimeData.slots;
+const runtimeGraph = createRuntimeGraph(layout, moduleIndex);
+const nodes = runtimeGraph.nodes;
 const history = new RuntimeHistory(moduleIndex.modules.length);
-new PropagationSolver(runtimeData).enforceConsistency();
+new PropagationSolver(runtimeGraph).enforceConsistency();
 const propagator = new PropagationSolver(
-    runtimeData,
+    runtimeGraph,
     history
 );
-const beforeSnapshot = createRuntimeSnapshot(slots);
+const beforeSnapshot = createRuntimeSnapshot(nodes);
 const moduleId = getModuleIdByTag(
     moduleIndex,
-    slots[collapseSlotIndex].modules,
+    nodes[collapseSlotIndex].modules,
     collapseModuleTag
 );
 
 console.log("\npropagation trace smoke");
 console.log(`\ncollapse ${formatSlotPath(semanticGraph.graph, layout, collapseSlotIndex)} -> ${formatModuleLabel(moduleIndex, moduleId)}`);
 
-printDomains("before", semanticGraph.graph, layout, moduleIndex, slots);
+printDomains("before", semanticGraph.graph, layout, moduleIndex, runtimeGraph);
 
 propagator.collapse(collapseSlotIndex, moduleId);
 
@@ -50,12 +51,12 @@ if (!item) {
 }
 
 printHistoryItem("history diff", semanticGraph.graph, layout, moduleIndex, item);
-printDomains("after propagation", semanticGraph.graph, layout, moduleIndex, slots);
+printDomains("after propagation", semanticGraph.graph, layout, moduleIndex, runtimeGraph);
 
-history.rollbackLast(slots);
+history.rollbackLast(runtimeGraph);
 
-printDomains("after rollback", semanticGraph.graph, layout, moduleIndex, slots);
-assertRuntimeSnapshotEqual(beforeSnapshot, createRuntimeSnapshot(slots));
+printDomains("after rollback", semanticGraph.graph, layout, moduleIndex, runtimeGraph);
+assertRuntimeSnapshotEqual(beforeSnapshot, createRuntimeSnapshot(nodes));
 console.log(`\n${green("rollback restored runtime state")}`);
 
 function printDomains(
@@ -63,13 +64,13 @@ function printDomains(
     graph: Graph<string>,
     layout: SemanticLayout,
     moduleIndex: SemanticModuleIndex,
-    slots: RuntimeSlot[]
+    runtimeGraph: RuntimeGraph
 ): void {
     console.log(`\n${title}:`);
 
-    for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+    for (let slotIndex = 0; slotIndex < runtimeGraph.nodes.length; slotIndex++) {
         console.log(
-            `  ${dim(`${slotIndex}.`)} ${cyan(formatSlotPath(graph, layout, slotIndex))}: ${formatModuleSet(moduleIndex, slots[slotIndex].modules)}`
+            `  ${dim(`${slotIndex}.`)} ${cyan(formatSlotPath(graph, layout, slotIndex))}: ${formatModuleSet(moduleIndex, runtimeGraph.nodes[slotIndex].modules)}`
         );
     }
 }
@@ -82,11 +83,11 @@ function printHistoryItem(
     item: NonNullable<ReturnType<RuntimeHistory["peek"]>>
 ): void {
     console.log(`\n${title}:`);
-    console.log(`  collapsed slot: ${item.collapsedSlotIndex}`);
+    console.log(`  collapsed slot: ${item.collapsedNodeIndex}`);
     console.log(`  previous collapse: ${formatNullableModule(moduleIndex, item.previousCollapsedModuleId)}`);
     console.log(`  selected module: ${formatModuleLabel(moduleIndex, item.collapsedModuleId)}`);
 
-    for (const [slotIndex, removedModules] of item.removedModulesBySlotIndex) {
+    for (const [slotIndex, removedModules] of item.removedModulesByNodeIndex) {
         console.log(
             `  remove from ${dim(`${slotIndex}.`)} ${cyan(formatSlotPath(graph, layout, slotIndex))}: ${formatModuleSet(moduleIndex, removedModules)}`
         );
@@ -165,48 +166,48 @@ function formatModuleLabel(
     return `${gold(moduleIndex.tagByModuleId[moduleId])}${dim(`:${moduleId}`)}`;
 }
 
-interface RuntimeSlotSnapshot {
+interface RuntimeNodeSnapshot {
     moduleIds: number[];
     collapsedModuleId: number | null;
     moduleHealth: number[][];
 }
 
-function createRuntimeSnapshot(slots: RuntimeSlot[]): RuntimeSlotSnapshot[] {
-    return slots.map((slot) => ({
-        moduleIds: slot.modules.toIds(),
-        collapsedModuleId: slot.collapsedModuleId,
-        moduleHealth: slot.moduleHealth.map((health) => [...health]),
+function createRuntimeSnapshot(nodes: RuntimeNode[]): RuntimeNodeSnapshot[] {
+    return nodes.map((node) => ({
+        moduleIds: node.modules.toIds(),
+        collapsedModuleId: node.collapsedModuleId,
+        moduleHealth: node.moduleHealth.map((health) => [...health]),
     }));
 }
 
 function assertRuntimeSnapshotEqual(
-    expected: RuntimeSlotSnapshot[],
-    actual: RuntimeSlotSnapshot[]
+    expected: RuntimeNodeSnapshot[],
+    actual: RuntimeNodeSnapshot[]
 ): void {
-    for (let slotIndex = 0; slotIndex < expected.length; slotIndex++) {
-        const expectedSlot = expected[slotIndex];
-        const actualSlot = actual[slotIndex];
+    for (let nodeIndex = 0; nodeIndex < expected.length; nodeIndex++) {
+        const expectedNode = expected[nodeIndex];
+        const actualNode = actual[nodeIndex];
 
-        if (JSON.stringify(expectedSlot.moduleIds) !== JSON.stringify(actualSlot.moduleIds)) {
-            throw new Error(`Runtime modules were not restored after rollback for slot "${slotIndex}".`);
+        if (JSON.stringify(expectedNode.moduleIds) !== JSON.stringify(actualNode.moduleIds)) {
+            throw new Error(`Runtime modules were not restored after rollback for node "${nodeIndex}".`);
         }
 
-        if (expectedSlot.collapsedModuleId !== actualSlot.collapsedModuleId) {
-            throw new Error(`Runtime collapse state was not restored after rollback for slot "${slotIndex}".`);
+        if (expectedNode.collapsedModuleId !== actualNode.collapsedModuleId) {
+            throw new Error(`Runtime collapse state was not restored after rollback for node "${nodeIndex}".`);
         }
 
-        for (let direction = 0; direction < expectedSlot.moduleHealth.length; direction++) {
+        for (let neighborIndex = 0; neighborIndex < expectedNode.moduleHealth.length; neighborIndex++) {
             for (
                 let moduleId = 0;
-                moduleId < expectedSlot.moduleHealth[direction].length;
+                moduleId < expectedNode.moduleHealth[neighborIndex].length;
                 moduleId++
             ) {
-                const expectedHealth = expectedSlot.moduleHealth[direction][moduleId];
-                const actualHealth = actualSlot.moduleHealth[direction][moduleId];
+                const expectedHealth = expectedNode.moduleHealth[neighborIndex][moduleId];
+                const actualHealth = actualNode.moduleHealth[neighborIndex][moduleId];
 
                 if (expectedHealth !== actualHealth) {
                     throw new Error(
-                        `Runtime health was not restored after rollback for slot "${slotIndex}", direction "${direction}", module "${moduleId}": expected ${expectedHealth}, actual ${actualHealth}.`
+                        `Runtime health was not restored after rollback for node "${nodeIndex}", neighbor "${neighborIndex}", module "${moduleId}": expected ${expectedHealth}, actual ${actualHealth}.`
                     );
                 }
             }

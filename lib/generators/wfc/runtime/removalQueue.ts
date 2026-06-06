@@ -10,16 +10,16 @@ export class RemovalQueue {
         );
     }
 
-    enqueue(slotIndex: number, modules: ModuleSet): void {
+    enqueue(nodeIndex: number, modules: ModuleSet): void {
         if (modules.empty) {
             return;
         }
 
-        this.queue.get(slotIndex).addSet(modules);
+        this.queue.get(nodeIndex).addSet(modules);
     }
 
     dequeue(): {
-        slotIndex: number;
+        nodeIndex: number;
         modules: ModuleSet;
     } | null {
         const item = this.queue.dequeue();
@@ -29,7 +29,7 @@ export class RemovalQueue {
         }
 
         return {
-            slotIndex: item.key,
+            nodeIndex: item.key,
             modules: item.value,
         };
     }

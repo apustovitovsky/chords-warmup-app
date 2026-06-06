@@ -4,7 +4,7 @@ import { CollapseQueue } from "../runtime/collapseQueue";
 import { CollapseSolver } from "../runtime/collapseSolver";
 import { PropagationSolver } from "../runtime/propagationSolver";
 import { RuntimeHistory, type RuntimeHistoryItem } from "../runtime/runtimeHistory";
-import { createRuntimeData } from "../runtime/runtimeCompiler";
+import { createRuntimeGraph } from "../runtime/runtimeCompiler";
 import { createSemanticLayout } from "../semanticLayoutBuilder";
 import { chordPatternLibrary, chordPatternSegments } from "./chordPatternSmokeData";
 import {
@@ -21,12 +21,12 @@ const layout = createSemanticLayout(
     semanticGraph,
     { supportOverlap: 1 }
 );
-const runtimeData = createRuntimeData(layout, moduleIndex);
-const slots = runtimeData.slots;
+const runtimeGraph = createRuntimeGraph(layout, moduleIndex);
+const nodes = runtimeGraph.nodes;
 const history = new RuntimeHistory(moduleIndex.modules.length);
-const propagator = new PropagationSolver(runtimeData, history);
-const queue = new CollapseQueue(runtimeData);
-const solver = new CollapseSolver(runtimeData);
+const propagator = new PropagationSolver(runtimeGraph, history);
+const queue = new CollapseQueue(runtimeGraph);
+const solver = new CollapseSolver(runtimeGraph);
 
 console.log("\ncollapse pipeline smoke");
 
@@ -38,7 +38,7 @@ printSemanticHealth(
     semanticGraph.graph,
     layout,
     moduleIndex,
-    slots
+    runtimeGraph
 );
 
 let step = 1;
@@ -46,12 +46,12 @@ let candidate = queue.nextCandidate();
 
 while (candidate !== null) {
     const moduleId = solver.pickModule(candidate);
-    const slotIndex = candidate.slotIndex;
-    const changedSlotIndices = propagator.collapse(slotIndex, moduleId);
+    const nodeIndex = candidate.nodeIndex;
+    const changedNodeIndices = propagator.collapse(nodeIndex, moduleId);
     const historyItem = history.peek();
 
     console.log(
-        `\n${green(`collapse step ${step}`)}: ${formatSlotPath(slotIndex)} -> ${formatModuleLabel(moduleIndex, moduleId)}`
+        `\n${green(`collapse step ${step}`)}: ${formatSlotPath(nodeIndex)} -> ${formatModuleLabel(moduleIndex, moduleId)}`
     );
     // console.log(`  ${dim("transition weight")}: ${calculateModuleTransitionWeight(slotIndex, moduleId)}`);
 
@@ -59,16 +59,16 @@ while (candidate !== null) {
         printHistoryDiff(historyItem);
     }
 
-    printChangedDomains(changedSlotIndices);
+    printChangedDomains(changedNodeIndices);
     printSemanticHealth(
         `semantic slot health: after step ${step}`,
         semanticGraph.graph,
         layout,
         moduleIndex,
-        slots
+        runtimeGraph
     );
 
-    queue.updateMany(changedSlotIndices);
+    queue.updateMany(changedNodeIndices);
     candidate = queue.nextCandidate();
     step++;
 }
@@ -78,19 +78,19 @@ console.log(`\n${green("collapse pipeline complete")}`);
 function printHistoryDiff(item: RuntimeHistoryItem): void {
     console.log(`  ${dim("selected")}: ${formatModuleLabel(moduleIndex, item.collapsedModuleId)}`);
 
-    for (const [slotIndex, removedModules] of item.removedModulesBySlotIndex) {
+    for (const [nodeIndex, removedModules] of item.removedModulesByNodeIndex) {
         console.log(
-            `  ${red("remove")} ${dim(`${slotIndex}.`)} ${cyan(formatSlotPath(slotIndex))}: ${formatModuleTags(moduleIndex, removedModules)}`
+            `  ${red("remove")} ${dim(`${nodeIndex}.`)} ${cyan(formatSlotPath(nodeIndex))}: ${formatModuleTags(moduleIndex, removedModules)}`
         );
     }
 }
 
-function printChangedDomains(slotIndices: number[]): void {
+function printChangedDomains(nodeIndices: number[]): void {
     console.log(`  ${dim("changed domains")}:`);
 
-    for (const slotIndex of slotIndices) {
+    for (const nodeIndex of nodeIndices) {
         console.log(
-            `    ${dim(`${slotIndex}.`)} ${cyan(formatSlotPath(slotIndex))}: ${formatModuleTags(moduleIndex, slots[slotIndex].modules)}`
+            `    ${dim(`${nodeIndex}.`)} ${cyan(formatSlotPath(nodeIndex))}: ${formatModuleTags(moduleIndex, nodes[nodeIndex].modules)}`
         );
     }
 }

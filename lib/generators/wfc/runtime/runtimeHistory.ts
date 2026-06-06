@@ -1,15 +1,14 @@
-import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
 import { RingBuffer } from "./helpers/ringBuffer";
-import type { RuntimeSlot } from "./runtimeSlot";
+import type { RuntimeGraph } from "./runtimeGraph";
 
 export const defaultRuntimeHistoryCapacity = 3000;
 
 export interface RuntimeHistoryItem {
-    collapsedSlotIndex: number;
+    collapsedNodeIndex: number;
     previousCollapsedModuleId: number | null;
     collapsedModuleId: number;
-    removedModulesBySlotIndex: Map<number, ModuleSet>;
+    removedModulesByNodeIndex: Map<number, ModuleSet>;
 }
 
 export class RuntimeHistory {
@@ -23,15 +22,15 @@ export class RuntimeHistory {
     }
 
     beginStep(
-        slotIndex: number,
+        nodeIndex: number,
         previousCollapsedModuleId: number | null,
         collapsedModuleId: number
     ): RuntimeHistoryItem {
         const item: RuntimeHistoryItem = {
-            collapsedSlotIndex: slotIndex,
+            collapsedNodeIndex: nodeIndex,
             previousCollapsedModuleId,
             collapsedModuleId,
-            removedModulesBySlotIndex: new Map(),
+            removedModulesByNodeIndex: new Map(),
         };
 
         this.items.push(item);
@@ -39,7 +38,7 @@ export class RuntimeHistory {
         return item;
     }
 
-    recordRemoval(slotIndex: number, removedModules: ModuleSet): void {
+    recordRemoval(nodeIndex: number, removedModules: ModuleSet): void {
         if (removedModules.empty) {
             return;
         }
@@ -50,11 +49,11 @@ export class RuntimeHistory {
             return;
         }
 
-        let target = item.removedModulesBySlotIndex.get(slotIndex);
+        let target = item.removedModulesByNodeIndex.get(nodeIndex);
 
         if (!target) {
             target = new ModuleSet(this.moduleCapacity);
-            item.removedModulesBySlotIndex.set(slotIndex, target);
+            item.removedModulesByNodeIndex.set(nodeIndex, target);
         }
 
         target.addSet(removedModules);
@@ -68,18 +67,18 @@ export class RuntimeHistory {
         return this.items.pop();
     }
 
-    rollbackLast(slots: RuntimeSlot[]): RuntimeHistoryItem | null {
+    rollbackLast(runtimeGraph: RuntimeGraph): RuntimeHistoryItem | null {
         const item = this.pop();
 
         if (!item) {
             return null;
         }
 
-        for (const [slotIndex, removedModules] of item.removedModulesBySlotIndex) {
-            this.addModules(slots, slotIndex, removedModules);
+        for (const [nodeIndex, removedModules] of item.removedModulesByNodeIndex) {
+            this.addModules(runtimeGraph, nodeIndex, removedModules);
         }
 
-        slots[item.collapsedSlotIndex].collapsedModuleId =
+        runtimeGraph.nodes[item.collapsedNodeIndex].collapsedModuleId =
             item.previousCollapsedModuleId;
 
         return item;
@@ -94,37 +93,33 @@ export class RuntimeHistory {
     }
 
     private addModules(
-        slots: RuntimeSlot[],
-        slotIndex: number,
+        runtimeGraph: RuntimeGraph,
+        nodeIndex: number,
         modulesToAdd: ModuleSet
     ): void {
-        const slot = slots[slotIndex];
-        const addedModules = slot.addModules(modulesToAdd);
+        const node = runtimeGraph.nodes[nodeIndex];
+        const addedModules = node.addModules(modulesToAdd);
 
         for (const moduleId of addedModules) {
-            this.restoreNeighborHealth(slots, slot, moduleId, Direction.Back);
-            this.restoreNeighborHealth(slots, slot, moduleId, Direction.Forward);
+            this.restoreNeighborHealth(runtimeGraph, nodeIndex, moduleId);
         }
     }
 
     private restoreNeighborHealth(
-        slots: RuntimeSlot[],
-        slot: RuntimeSlot,
-        moduleId: number,
-        direction: Direction
+        runtimeGraph: RuntimeGraph,
+        nodeIndex: number,
+        moduleId: number
     ): void {
-        const neighborContext = slot.neighbors[direction];
+        const neighbors = runtimeGraph.neighbors[nodeIndex];
 
-        if (!neighborContext) {
-            return;
-        }
+        for (let neighborIndex = 0; neighborIndex < neighbors.length; neighborIndex++) {
+            const neighborContext = neighbors[neighborIndex];
+            const neighbor = runtimeGraph.nodes[neighborContext.nodeIndex];
+            const supportedModules = neighborContext.supportedModules[moduleId];
 
-        const neighbor = slots[neighborContext.slotIndex];
-        const neighborDirection = Direction.opposite(direction);
-        const supportedModules = neighborContext.supportedModules[moduleId];
-
-        for (const neighborModuleId of supportedModules) {
-            neighbor.moduleHealth[neighborDirection][neighborModuleId]++;
+            for (const neighborModuleId of supportedModules) {
+                neighbor.moduleHealth[neighborContext.reverseNeighborIndex][neighborModuleId]++;
+            }
         }
     }
 }

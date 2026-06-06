@@ -1,14 +1,14 @@
 import { CollapseQueue } from "./collapseQueue";
 import { PropagationSolver } from "./propagationSolver";
-import type { RuntimeData } from "./runtimeData";
+import type { RuntimeGraph } from "./runtimeGraph";
 
 export class CollapseSolver {
     private readonly propagationSolver: PropagationSolver;
     private readonly collapseQueue: CollapseQueue;
 
-    constructor(runtimeData: RuntimeData) {
-        this.propagationSolver = new PropagationSolver(runtimeData);
-        this.collapseQueue = new CollapseQueue(runtimeData);
+    constructor(runtimeGraph: RuntimeGraph) {
+        this.propagationSolver = new PropagationSolver(runtimeGraph);
+        this.collapseQueue = new CollapseQueue(runtimeGraph);
     }
 
     solve(): void {
@@ -19,18 +19,18 @@ export class CollapseSolver {
 
         while (candidate !== null) {
             const moduleId = this.pickModule(candidate);
-            const changedSlotIndices = this.propagationSolver.collapse(
-                candidate.slotIndex,
+            const changedNodeIndices = this.propagationSolver.collapse(
+                candidate.nodeIndex,
                 moduleId
             );
 
-            this.collapseQueue.updateMany(changedSlotIndices);
+            this.collapseQueue.updateMany(changedNodeIndices);
             candidate = this.collapseQueue.nextCandidate();
         }
     }
 
     pickModule(candidate: {
-        slotIndex: number,
+        nodeIndex: number,
         moduleWeights: Map<number, number>
     }): number {
         let bestModuleId: number | null = null;
@@ -48,7 +48,7 @@ export class CollapseSolver {
         }
 
         if (bestModuleId === null) {
-            throw new Error(`Cannot pick module from empty slot "${candidate.slotIndex}".`);
+            throw new Error(`Cannot pick module from empty node "${candidate.nodeIndex}".`);
         }
 
         return bestModuleId;

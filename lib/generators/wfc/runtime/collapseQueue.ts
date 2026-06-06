@@ -1,9 +1,11 @@
 import { PriorityQueue } from "./helpers/priorityQueue";
-import type { RuntimeSlot } from "./runtimeSlot";
+import type { RuntimeGraph } from "./runtimeGraph";
+import type { RuntimeNode } from "./runtimeNode";
 import { calculateModuleTransitionWeight } from "./transitionWeight";
 
 interface CollapseQueueEntry {
-    slotIndex: number;
+    nodeIndex: number;
+    orderIndex: number;
     entropy: number;
     version: number;
     moduleWeights: Map<number, number>;
@@ -11,55 +13,64 @@ interface CollapseQueueEntry {
 
 export class CollapseQueue {
     private readonly entropyQueue = new PriorityQueue<CollapseQueueEntry>(
-        compareCollapseSlotQueueEntries
+        compareCollapseQueueEntries
     );
     private readonly versions: number[];
-    private readonly slots: RuntimeSlot[];
+    private readonly orderIndexByNodeIndex: number[];
 
-    constructor(runtimeData: { slots: RuntimeSlot[] }) {
-        this.slots = runtimeData.slots;
-        this.versions = new Array(this.slots.length).fill(0);
+    constructor(private readonly runtimeGraph: RuntimeGraph) {
+        this.versions = new Array(this.runtimeGraph.nodes.length).fill(0);
+        this.orderIndexByNodeIndex = new Array(this.runtimeGraph.nodes.length).fill(0);
+
+        for (
+            let orderIndex = 0;
+            orderIndex < this.runtimeGraph.order.length;
+            orderIndex++
+        ) {
+            this.orderIndexByNodeIndex[this.runtimeGraph.order[orderIndex]] = orderIndex;
+        }
     }
 
     initialize(): void {
-        for (let slotIndex = 0; slotIndex < this.slots.length; slotIndex++) {
-            this.update(slotIndex);
+        for (const nodeIndex of this.runtimeGraph.order) {
+            this.update(nodeIndex);
         }
     }
 
-    updateMany(slotIndices: Iterable<number>): void {
-        for (const slotIndex of this.getAffectedSlotIndices(slotIndices)) {
-            this.update(slotIndex);
+    updateMany(nodeIndices: Iterable<number>): void {
+        for (const nodeIndex of this.getAffectedNodeIndices(nodeIndices)) {
+            this.update(nodeIndex);
         }
     }
 
-    update(slotIndex: number): void {
-        const slot = this.slots[slotIndex];
-        const version = ++this.versions[slotIndex];
+    update(nodeIndex: number): void {
+        const node = this.runtimeGraph.nodes[nodeIndex];
+        const version = ++this.versions[nodeIndex];
 
-        if (slot.moduleCount <= 1) {
+        if (node.moduleCount <= 1) {
             return;
         }
 
-        const moduleWeights = this.calculateModuleWeights(slotIndex);
-        const entropy = this.calculateEntropy(slot, moduleWeights);
+        const moduleWeights = this.calculateModuleWeights(nodeIndex);
+        const entropy = this.calculateEntropy(node, moduleWeights);
 
         this.entropyQueue.push({
-            slotIndex,
+            nodeIndex,
+            orderIndex: this.orderIndexByNodeIndex[nodeIndex],
             entropy,
             version,
             moduleWeights,
         });
     }
 
-    private calculateModuleWeights(slotIndex: number): Map<number, number> {
+    private calculateModuleWeights(nodeIndex: number): Map<number, number> {
         const result = new Map<number, number>();
-        const slot = this.slots[slotIndex];
+        const node = this.runtimeGraph.nodes[nodeIndex];
 
-        for (const moduleId of slot.modules) {
+        for (const moduleId of node.modules) {
             result.set(
                 moduleId,
-                calculateModuleTransitionWeight(this.slots, slotIndex, moduleId)
+                calculateModuleTransitionWeight(this.runtimeGraph, nodeIndex, moduleId)
             );
         }
 
@@ -67,20 +78,20 @@ export class CollapseQueue {
     }
 
     nextCandidate(): {
-        slotIndex: number,
+        nodeIndex: number,
         moduleWeights: Map<number, number>,
     } | null {
         let entry = this.entropyQueue.pop();
 
         while (entry !== null) {
-            const slot = this.slots[entry.slotIndex];
+            const node = this.runtimeGraph.nodes[entry.nodeIndex];
 
             if (
-                entry.version === this.versions[entry.slotIndex] &&
-                slot.moduleCount > 1
+                entry.version === this.versions[entry.nodeIndex] &&
+                node.moduleCount > 1
             ) {
                 return {
-                    slotIndex: entry.slotIndex,
+                    nodeIndex: entry.nodeIndex,
                     moduleWeights: entry.moduleWeights,
                 };
             }
@@ -92,7 +103,7 @@ export class CollapseQueue {
     }
 
     private calculateEntropy(
-        slot: RuntimeSlot,
+        node: RuntimeNode,
         moduleWeights: Map<number, number>
     ): number {
         let sumWeight = 0;
@@ -108,22 +119,20 @@ export class CollapseQueue {
         }
 
         if (sumWeight <= 0) {
-            return Math.log(slot.moduleCount);
+            return Math.log(node.moduleCount);
         }
 
         return Math.log(sumWeight) - sumWeightLogWeight / sumWeight;
     }
 
-    private getAffectedSlotIndices(slotIndices: Iterable<number>): Set<number> {
+    private getAffectedNodeIndices(nodeIndices: Iterable<number>): Set<number> {
         const result = new Set<number>();
 
-        for (const slotIndex of slotIndices) {
-            result.add(slotIndex);
+        for (const nodeIndex of nodeIndices) {
+            result.add(nodeIndex);
 
-            for (const neighborContext of this.slots[slotIndex].neighbors) {
-                if (neighborContext) {
-                    result.add(neighborContext.slotIndex);
-                }
+            for (const neighborContext of this.runtimeGraph.neighbors[nodeIndex]) {
+                result.add(neighborContext.nodeIndex);
             }
         }
 
@@ -131,7 +140,7 @@ export class CollapseQueue {
     }
 }
 
-function compareCollapseSlotQueueEntries(
+function compareCollapseQueueEntries(
     lhs: CollapseQueueEntry,
     rhs: CollapseQueueEntry
 ): number {
@@ -139,5 +148,9 @@ function compareCollapseSlotQueueEntries(
         return lhs.entropy - rhs.entropy;
     }
 
-    return lhs.slotIndex - rhs.slotIndex;
+    if (lhs.orderIndex !== rhs.orderIndex) {
+        return lhs.orderIndex - rhs.orderIndex;
+    }
+
+    return lhs.nodeIndex - rhs.nodeIndex;
 }

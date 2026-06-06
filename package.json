@@ -7,11 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "smoke:wfc:semantic-health": "tsx lib/generators/wfc/smoke/createSemanticSlotHealthSmoke.ts",
-    "smoke:wfc:form-health": "tsx lib/generators/wfc/smoke/createSongFormHealthSmoke.ts",
     "smoke:wfc:propagation-trace": "tsx lib/generators/wfc/smoke/createPropagationTraceSmoke.ts",
-    "smoke:wfc:collapse-pipeline": "tsx lib/generators/wfc/smoke/createCollapsePipelineSmoke.ts",
-    "smoke:wfc:collapse-solver": "tsx lib/generators/wfc/smoke/createCollapseSolverSmoke.ts"
+    "smoke:wfc:collapse-pipeline": "tsx lib/generators/wfc/smoke/createCollapsePipelineSmoke.ts"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",

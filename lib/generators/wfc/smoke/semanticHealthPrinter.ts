@@ -1,8 +1,7 @@
-import { Direction } from "../runtime/direction";
 import type { Graph } from "../hierarchy/graph";
 import type { SemanticLayout } from "../semanticLayout";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
-import type { RuntimeSlot } from "../runtime/runtimeSlot";
+import type { RuntimeGraph, RuntimeNeighbor } from "../runtime/runtimeGraph";
 import type { ModuleSet } from "../runtime/moduleSet";
 
 export function printSemanticHealth(
@@ -10,29 +9,29 @@ export function printSemanticHealth(
     graph: Graph<string>,
     layout: SemanticLayout,
     moduleIndex: SemanticModuleIndex,
-    slots: RuntimeSlot[]
+    runtimeGraph: RuntimeGraph
 ): void {
     console.log(`\n${title}`);
 
-    for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
-        const slot = slots[slotIndex];
+    for (let nodeIndex = 0; nodeIndex < runtimeGraph.nodes.length; nodeIndex++) {
+        const node = runtimeGraph.nodes[nodeIndex];
 
-        console.log(`\n${dim(`${slotIndex}.`)} ${cyan(formatGraphPath(graph, layout.slots[slotIndex].nodeId))}`);
-        console.log(`  ${green("domain")}: ${formatModuleTags(moduleIndex, slot.modules)}`);
-        console.log(`  ${dim("support")}: ${formatCompiledSupportTags(moduleIndex, slot)}`);
+        console.log(`\n${dim(`${nodeIndex}.`)} ${cyan(formatGraphPath(graph, layout.slots[nodeIndex].nodeId))}`);
+        console.log(`  ${green("domain")}: ${formatModuleTags(moduleIndex, node.modules)}`);
+        console.log(`  ${dim("support")}: ${formatCompiledSupportTags(moduleIndex, runtimeGraph, nodeIndex)}`);
 
-        for (const moduleId of slot.modules) {
+        for (const moduleId of node.modules) {
             const backSupport = getSupportedNeighborTags(
                 moduleIndex,
-                slot,
+                runtimeGraph.neighbors[nodeIndex],
+                nodeIndex - 1,
                 moduleId,
-                Direction.Back
             );
             const forwardSupport = getSupportedNeighborTags(
                 moduleIndex,
-                slot,
+                runtimeGraph.neighbors[nodeIndex],
+                nodeIndex + 1,
                 moduleId,
-                Direction.Forward
             );
 
             console.log(
@@ -79,11 +78,13 @@ export function formatGraphPath(graph: Graph<string>, nodeId: number): string {
 
 function getSupportedNeighborTags(
     moduleIndex: SemanticModuleIndex,
-    slot: RuntimeSlot,
+    neighbors: RuntimeNeighbor[],
+    neighborNodeIndex: number,
     moduleId: number,
-    direction: Direction
 ): string {
-    const neighborContext = slot.neighbors[direction];
+    const neighborContext = neighbors.find((neighbor) =>
+        neighbor.nodeIndex === neighborNodeIndex
+    );
 
     if (!neighborContext) {
         return dim("x");
@@ -98,15 +99,12 @@ function getSupportedNeighborTags(
 
 function formatCompiledSupportTags(
     moduleIndex: SemanticModuleIndex,
-    slot: RuntimeSlot
+    runtimeGraph: RuntimeGraph,
+    nodeIndex: number
 ): string {
     const support = new Set<string>();
 
-    for (const neighborContext of slot.neighbors) {
-        if (!neighborContext) {
-            continue;
-        }
-
+    for (const neighborContext of runtimeGraph.neighbors[nodeIndex]) {
         for (const supportedModules of neighborContext.supportedModules) {
             for (const moduleId of supportedModules) {
                 support.add(formatModuleLabel(moduleIndex, moduleId));
