@@ -1,4 +1,4 @@
-import type { ModuleSet } from "./moduleSet";
+import type { RuntimeEdge } from "./runtimeEdge";
 import type { RuntimeNode } from "./runtimeNode";
 
 export class RuntimeGraph {
@@ -49,26 +49,5 @@ export class RuntimeGraph {
         }
 
         return result;
-    }
-}
-
-export interface EdgeTransitionData {
-    modules: ModuleSet[];
-    weights: number[][];
-}
-
-export class RuntimeEdge {
-    constructor(
-        readonly targetNodeIndex: number,
-        readonly reverseEdgeIndex: number,
-        readonly transitions: EdgeTransitionData
-    ) { }
-
-    getSupportedModules(moduleId: number): ModuleSet {
-        return this.transitions.modules[moduleId];
-    }
-
-    getTransitionWeight(fromModuleId: number, toModuleId: number): number {
-        return this.transitions.weights[fromModuleId][toModuleId];
     }
 }

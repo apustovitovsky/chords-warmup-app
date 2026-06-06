@@ -11,7 +11,7 @@ export interface SemanticLayoutSegment {
 
 export interface SemanticLayoutSlot {
     nodeId: number;
-    supportNodeIds: number[];
+    domainNodeIds: number[];
 }
 
 export interface SemanticLayout {

@@ -1,24 +1,17 @@
-import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import {
-    RuntimeEdge,
-    RuntimeGraph,
-    type EdgeTransitionData,
-} from "./runtimeGraph";
+import { RuntimeGraph } from "./runtimeGraph";
 import { RuntimeNode } from "./runtimeNode";
-import { SemanticNeighborContext } from "../semanticNeighborContext";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
 import type { SemanticLayout, SemanticLayoutSlot } from "../semanticLayout";
+import { type EdgeTransitionData, RuntimeEdge } from "./runtimeEdge";
 
 interface RuntimeNodeDraft {
     modules: ModuleSet;
     adjacentNodeIndices: Array<number | null>;
-    semanticNeighborContext: SemanticNeighborContext;
 }
 
 interface RuntimeEdgeDraft {
     targetNodeIndex: number;
-    direction: Direction;
     transitions: EdgeTransitionData;
 }
 
@@ -37,7 +30,7 @@ class RuntimeCompiler {
         semanticModuleIndex: SemanticModuleIndex
     ): RuntimeGraph {
         const drafts = this.createDrafts(layout, semanticModuleIndex);
-        const edgeDrafts = this.createEdgeDrafts(drafts);
+        const edgeDrafts = this.createEdgeDrafts(drafts, semanticModuleIndex);
         const edges = this.createEdges(edgeDrafts);
         const nodes = drafts.map((draft, nodeIndex) => new RuntimeNode(
             draft.modules,
@@ -63,26 +56,27 @@ class RuntimeCompiler {
 
         for (let nodeIndex = 0; nodeIndex < layout.slots.length; nodeIndex++) {
             const layoutSlot = layout.slots[nodeIndex];
-            const moduleMask = semanticModuleIndex.getModuleMask(layoutSlot.nodeId);
+            const moduleMask = semanticModuleIndex.getModuleMaskForNodeIds(
+                layoutSlot.domainNodeIds
+            );
 
             drafts.push({
-                modules: moduleMask.clone(),
+                modules: moduleMask,
                 adjacentNodeIndices: this.getAdjacentNodeIndices(layout.slots, nodeIndex),
-                semanticNeighborContext: semanticModuleIndex.createNeighborContext(
-                    layoutSlot.supportNodeIds
-                ),
             });
         }
 
         return drafts;
     }
 
-    private createEdgeDrafts(drafts: RuntimeNodeDraft[]): RuntimeEdgeDraft[][] {
+    private createEdgeDrafts(
+        drafts: RuntimeNodeDraft[],
+        semanticModuleIndex: SemanticModuleIndex
+    ): RuntimeEdgeDraft[][] {
         return drafts.map((draft) => {
             const edgeDrafts: RuntimeEdgeDraft[] = [];
 
-            for (const direction of [Direction.Back, Direction.Forward]) {
-                const targetNodeIndex = draft.adjacentNodeIndices[direction];
+            for (const targetNodeIndex of draft.adjacentNodeIndices) {
 
                 if (targetNodeIndex === null) {
                     continue;
@@ -90,11 +84,10 @@ class RuntimeCompiler {
 
                 edgeDrafts.push({
                     targetNodeIndex,
-                    direction,
                     transitions: this.createEdgeTransitionData(
                         draft,
                         drafts[targetNodeIndex],
-                        direction
+                        semanticModuleIndex
                     ),
                 });
             }
@@ -140,7 +133,7 @@ class RuntimeCompiler {
     private createEdgeTransitionData(
         draft: RuntimeNodeDraft,
         neighbor: RuntimeNodeDraft,
-        direction: Direction
+        semanticModuleIndex: SemanticModuleIndex
     ): EdgeTransitionData {
         const modules = this.createEmptyModuleSets(draft.modules);
         const weights = this.createEmptyTransitionWeights(draft.modules);
@@ -151,11 +144,9 @@ class RuntimeCompiler {
 
             for (const neighborModuleId of neighbor.modules) {
                 const weight = this.getTransitionWeight(
-                    draft,
+                    semanticModuleIndex,
                     moduleId,
-                    neighbor,
-                    neighborModuleId,
-                    direction
+                    neighborModuleId
                 );
 
                 if (weight > 0) {
@@ -194,20 +185,13 @@ class RuntimeCompiler {
     }
 
     private getTransitionWeight(
-        draft: RuntimeNodeDraft,
+        semanticModuleIndex: SemanticModuleIndex,
         moduleId: number,
-        neighbor: RuntimeNodeDraft,
-        neighborModuleId: number,
-        direction: Direction
+        neighborModuleId: number
     ): number {
-        return draft.semanticNeighborContext.getTransitionWeight(
+        return semanticModuleIndex.getTransitionWeight(
             moduleId,
-            neighborModuleId,
-            direction
-        ) + neighbor.semanticNeighborContext.getTransitionWeight(
-            moduleId,
-            neighborModuleId,
-            direction
+            neighborModuleId
         );
     }
 
@@ -215,29 +199,10 @@ class RuntimeCompiler {
         slots: SemanticLayoutSlot[],
         slotIndex: number
     ): Array<number | null> {
-        const slot = slots[slotIndex];
-
         return [
-            this.hasSharedSupportContext(slot, slots[slotIndex - 1])
-                ? slotIndex - 1
-                : null,
-            this.hasSharedSupportContext(slot, slots[slotIndex + 1])
-                ? slotIndex + 1
-                : null,
+            slots[slotIndex - 1] ? slotIndex - 1 : null,
+            slots[slotIndex + 1] ? slotIndex + 1 : null,
         ];
-    }
-
-    private hasSharedSupportContext(
-        slot: SemanticLayoutSlot,
-        neighbor: SemanticLayoutSlot | undefined
-    ): boolean {
-        if (!neighbor) {
-            return false;
-        }
-
-        return slot.supportNodeIds.some((nodeId) =>
-            neighbor.supportNodeIds.includes(nodeId)
-        );
     }
 
     private initializeModuleHealth(runtimeGraph: RuntimeGraph): void {

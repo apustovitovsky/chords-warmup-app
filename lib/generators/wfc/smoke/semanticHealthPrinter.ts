@@ -9,7 +9,10 @@ export function printSemanticHealth(
     graph: Graph<string>,
     layout: SemanticLayout,
     moduleIndex: SemanticModuleIndex,
-    runtimeGraph: RuntimeGraph
+    runtimeGraph: RuntimeGraph,
+    options: {
+        printSupport?: boolean;
+    } = {}
 ): void {
     console.log(`\n${title}`);
 
@@ -18,6 +21,11 @@ export function printSemanticHealth(
 
         console.log(`\n${dim(`${nodeIndex}.`)} ${cyan(formatGraphPath(graph, layout.slots[nodeIndex].nodeId))}`);
         console.log(`  ${green("domain")}: ${formatModuleTags(moduleIndex, node.modules)}`);
+
+        if (options.printSupport === false) {
+            continue;
+        }
+
         console.log(`  ${dim("support")}: ${formatCompiledSupportTags(moduleIndex, runtimeGraph, nodeIndex)}`);
 
         for (const moduleId of node.modules) {

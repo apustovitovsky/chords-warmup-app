@@ -19,7 +19,7 @@ const moduleIndex = createSemanticModuleIndex(chordPatternLibrary, semanticGraph
 const layout = createSemanticLayout(
     chordPatternSegments,
     semanticGraph,
-    { supportOverlap: 1 }
+    { domainOverlap: 1 }
 );
 const runtimeGraph = createRuntimeGraph(layout, moduleIndex);
 const nodes = runtimeGraph.nodes;
@@ -38,7 +38,8 @@ printSemanticHealth(
     semanticGraph.graph,
     layout,
     moduleIndex,
-    runtimeGraph
+    runtimeGraph,
+    { printSupport: false }
 );
 
 let step = 1;
@@ -58,18 +59,20 @@ while (candidate !== null) {
     }
 
     printChangedDomains(changedNodeIndices);
-    printSemanticHealth(
-        `semantic slot health: after step ${step}`,
-        semanticGraph.graph,
-        layout,
-        moduleIndex,
-        runtimeGraph
-    );
 
     queue.updateMany(changedNodeIndices);
     candidate = queue.nextCandidate();
     step++;
 }
+
+printSemanticHealth(
+    "semantic slot health: final",
+    semanticGraph.graph,
+    layout,
+    moduleIndex,
+    runtimeGraph,
+    { printSupport: false }
+);
 
 console.log(`\n${green("collapse pipeline complete")}`);
 

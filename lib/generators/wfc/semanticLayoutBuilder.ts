@@ -7,13 +7,13 @@ import type {
 } from "./semanticLayout";
 
 export interface SemanticLayoutBuilderOptions {
-    supportOverlap: number;
+    domainOverlap: number;
 }
 
 export function createSemanticLayout(
     definitions: SemanticSegmentDefinition[],
     semanticGraph: SemanticGraph,
-    options: SemanticLayoutBuilderOptions = { supportOverlap: 0 }
+    options: SemanticLayoutBuilderOptions = { domainOverlap: 0 }
 ): SemanticLayout {
     const builder = new SemanticLayoutBuilder();
 
@@ -42,7 +42,7 @@ class SemanticLayoutBuilder {
             return segment;
         });
 
-        const slots = this.createSlots(segments, options.supportOverlap);
+        const slots = this.createSlots(segments, options.domainOverlap);
 
         return {
             segments,
@@ -53,7 +53,7 @@ class SemanticLayoutBuilder {
 
     private createSlots(
         segments: SemanticLayoutSegment[],
-        supportOverlap: number
+        domainOverlap: number
     ): SemanticLayoutSlot[] {
         const slots: SemanticLayoutSlot[] = [];
 
@@ -65,10 +65,10 @@ class SemanticLayoutBuilder {
             ) {
                 slots.push({
                     nodeId: segment.nodeId,
-                    supportNodeIds: this.getSupportNodeIds(
+                    domainNodeIds: this.getDomainNodeIds(
                         segments,
                         slotIndex,
-                        supportOverlap
+                        domainOverlap
                     ),
                 });
             }
@@ -77,28 +77,28 @@ class SemanticLayoutBuilder {
         return slots;
     }
 
-    private getSupportNodeIds(
+    private getDomainNodeIds(
         segments: SemanticLayoutSegment[],
         slotIndex: number,
-        supportOverlap: number
+        domainOverlap: number
     ): number[] {
-        const supportNodeIds: number[] = [];
-        const supportStartIndex = slotIndex - supportOverlap;
-        const supportEndIndex = slotIndex + supportOverlap;
+        const domainNodeIds: number[] = [];
+        const domainStartIndex = slotIndex - domainOverlap;
+        const domainEndIndex = slotIndex + domainOverlap;
 
         for (const segment of segments) {
             const intersects =
-                segment.startIndex <= supportEndIndex &&
-                segment.endIndex >= supportStartIndex;
+                segment.startIndex <= domainEndIndex &&
+                segment.endIndex >= domainStartIndex;
 
             if (!intersects) {
                 continue;
             }
 
-            supportNodeIds.push(segment.nodeId);
+            domainNodeIds.push(segment.nodeId);
         }
 
-        return supportNodeIds;
+        return domainNodeIds;
     }
 
     private getNodeIdByPath(

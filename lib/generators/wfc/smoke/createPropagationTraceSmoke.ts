@@ -20,7 +20,7 @@ const moduleIndex = createSemanticModuleIndex(chordPatternLibrary, semanticGraph
 const layout = createSemanticLayout(
     chordPatternSegments,
     semanticGraph,
-    { supportOverlap: 1 }
+    { domainOverlap: 1 }
 );
 const runtimeGraph = createRuntimeGraph(layout, moduleIndex);
 const nodes = runtimeGraph.nodes;

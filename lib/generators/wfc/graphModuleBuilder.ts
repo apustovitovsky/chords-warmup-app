@@ -1,7 +1,5 @@
 import type { Module } from "./runtime/module";
-import { ModuleSet } from "./runtime/moduleSet";
 import type { Graph } from "./hierarchy/graph";
-import { Direction } from "./runtime/direction";
 import type { SemanticGraph } from "./hierarchy/semanticGraph";
 import {
     expandSemanticLevels,
@@ -14,6 +12,12 @@ interface GraphModuleMap {
     moduleByGraphNodeId: Map<number, Module>;
     graphNodeIdByModuleId: Map<number, number>;
     tagByModuleId: string[];
+    transitions: ModuleTransition[];
+}
+
+export interface ModuleTransition {
+    fromModuleId: number;
+    toModuleId: number;
 }
 
 export function createGraphModules(
@@ -23,13 +27,20 @@ export function createGraphModules(
     const moduleByGraphNodeId = new Map<number, Module>();
     const graphNodeIdByModuleId = new Map<number, number>();
     const tagByModuleId: string[] = [];
+    const valueIdByTag = new Map<string, number>();
 
     const modules: Module[] = nodeIds.map((nodeId, index) => {
         const node = graph.nodes[nodeId];
+        let valueId = valueIdByTag.get(node.payload);
+
+        if (valueId === undefined) {
+            valueId = valueIdByTag.size;
+            valueIdByTag.set(node.payload, valueId);
+        }
 
         const module = {
             id: index,
-            possibleNeighbors: [],
+            valueId,
         };
 
         moduleByGraphNodeId.set(node.id, module);
@@ -39,23 +50,13 @@ export function createGraphModules(
         return module;
     });
 
-    initializeModules(modules);
-
     return {
         modules,
         moduleByGraphNodeId,
         graphNodeIdByModuleId,
         tagByModuleId,
+        transitions: [],
     };
-}
-
-function initializeModules(modules: Module[]): void {
-    for (const module of modules) {
-        module.possibleNeighbors = [
-            new ModuleSet(modules.length),
-            new ModuleSet(modules.length),
-        ];
-    }
 }
 
 export function createSemanticModuleIndex(
@@ -81,7 +82,8 @@ export function createSemanticModuleIndex(
         result.modules,
         result.moduleByGraphNodeId,
         result.graphNodeIdByModuleId,
-        result.tagByModuleId
+        result.tagByModuleId,
+        result.transitions
     );
 }
 
@@ -141,9 +143,14 @@ function configurePathNeighbors(
             result.moduleByGraphNodeId
         );
 
-        currentModule.possibleNeighbors[Direction.Forward].add(nextModule.id);
-
-        nextModule.possibleNeighbors[Direction.Back].add(currentModule.id);
+        result.transitions.push({
+            fromModuleId: currentModule.id,
+            toModuleId: nextModule.id,
+        });
+        result.transitions.push({
+            fromModuleId: nextModule.id,
+            toModuleId: currentModule.id,
+        });
     }
 }
 

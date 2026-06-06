@@ -1,18 +1,22 @@
 import type { Module } from "./runtime/module";
 import { ModuleSet } from "./runtime/moduleSet";
 import type { SemanticGraph } from "./hierarchy/semanticGraph";
-import { SemanticNeighborContext } from "./semanticNeighborContext";
+import type { ModuleTransition } from "./graphModuleBuilder";
 
 export class SemanticModuleIndex {
     private readonly moduleMaskByNodeId = new Map<number, ModuleSet>();
+    private readonly valueTransitionWeights = new Map<number, Map<number, number>>();
 
     constructor(
         private readonly semanticGraph: SemanticGraph,
         readonly modules: Module[],
         readonly moduleByGraphNodeId: Map<number, Module>,
         readonly graphNodeIdByModuleId: Map<number, number>,
-        readonly tagByModuleId: string[]
-    ) { }
+        readonly tagByModuleId: string[],
+        transitions: ModuleTransition[]
+    ) {
+        this.initializeValueTransitionWeights(transitions);
+    }
 
     getModuleMask(nodeId: number): ModuleSet {
         let moduleMask = this.moduleMaskByNodeId.get(nodeId);
@@ -25,18 +29,23 @@ export class SemanticModuleIndex {
         return moduleMask;
     }
 
-    createNeighborContext(nodeIds: number[]): SemanticNeighborContext {
-        const modules = new ModuleSet(this.modules.length);
+    getModuleMaskForNodeIds(nodeIds: number[]): ModuleSet {
+        const result = new ModuleSet(this.modules.length);
 
         for (const nodeId of nodeIds) {
-            modules.addSet(this.getModuleMask(nodeId));
+            result.addSet(this.getModuleMask(nodeId));
         }
 
-        return new SemanticNeighborContext(
-            this.modules,
-            this.tagByModuleId,
-            modules
-        );
+        return result;
+    }
+
+    getTransitionWeight(fromModuleId: number, toModuleId: number): number {
+        const fromValueId = this.modules[fromModuleId].valueId;
+        const toValueId = this.modules[toModuleId].valueId;
+
+        return this.valueTransitionWeights
+            .get(fromValueId)
+            ?.get(toValueId) ?? 0;
     }
 
     private createModuleMask(nodeId: number): ModuleSet {
@@ -53,5 +62,22 @@ export class SemanticModuleIndex {
         }
 
         return mask;
+    }
+
+    private initializeValueTransitionWeights(
+        transitions: ModuleTransition[]
+    ): void {
+        for (const transition of transitions) {
+            const fromValueId = this.modules[transition.fromModuleId].valueId;
+            const toValueId = this.modules[transition.toModuleId].valueId;
+            let weights = this.valueTransitionWeights.get(fromValueId);
+
+            if (!weights) {
+                weights = new Map<number, number>();
+                this.valueTransitionWeights.set(fromValueId, weights);
+            }
+
+            weights.set(toValueId, (weights.get(toValueId) ?? 0) + 1);
+        }
     }
 }
