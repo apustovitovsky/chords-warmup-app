@@ -1,6 +1,10 @@
 import { Direction } from "./direction";
 import { ModuleSet } from "./moduleSet";
-import { RuntimeGraph, type RuntimeEdge } from "./runtimeGraph";
+import {
+    RuntimeEdge,
+    RuntimeGraph,
+    type EdgeTransitionData,
+} from "./runtimeGraph";
 import { RuntimeNode } from "./runtimeNode";
 import { SemanticNeighborContext } from "../semanticNeighborContext";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
@@ -15,13 +19,7 @@ interface RuntimeNodeDraft {
 interface RuntimeEdgeDraft {
     targetNodeIndex: number;
     direction: Direction;
-    supportedModules: ModuleSet[];
-    transitionWeights: number[][];
-}
-
-interface CompiledNeighborSupport {
-    supportedModules: ModuleSet[];
-    transitionWeights: number[][];
+    transitions: EdgeTransitionData;
 }
 
 export function createRuntimeGraph(
@@ -93,7 +91,7 @@ class RuntimeCompiler {
                 edgeDrafts.push({
                     targetNodeIndex,
                     direction,
-                    ...this.createCompiledNeighborSupport(
+                    transitions: this.createEdgeTransitionData(
                         draft,
                         drafts[targetNodeIndex],
                         direction
@@ -109,16 +107,15 @@ class RuntimeCompiler {
         edgeDrafts: RuntimeEdgeDraft[][]
     ): RuntimeEdge[][] {
         return edgeDrafts.map((nodeEdgeDrafts, sourceNodeIndex) =>
-            nodeEdgeDrafts.map((edgeDraft) => ({
-                targetNodeIndex: edgeDraft.targetNodeIndex,
-                reverseEdgeIndex: this.getReverseEdgeIndex(
+            nodeEdgeDrafts.map((edgeDraft) => new RuntimeEdge(
+                edgeDraft.targetNodeIndex,
+                this.getReverseEdgeIndex(
                     edgeDrafts,
                     sourceNodeIndex,
                     edgeDraft.targetNodeIndex
                 ),
-                supportedModules: edgeDraft.supportedModules,
-                transitionWeights: edgeDraft.transitionWeights,
-            }))
+                edgeDraft.transitions
+            ))
         );
     }
 
@@ -140,17 +137,17 @@ class RuntimeCompiler {
         return reverseEdgeIndex;
     }
 
-    private createCompiledNeighborSupport(
+    private createEdgeTransitionData(
         draft: RuntimeNodeDraft,
         neighbor: RuntimeNodeDraft,
         direction: Direction
-    ): CompiledNeighborSupport {
-        const supportedModules = this.createEmptyModuleSets(draft.modules);
-        const transitionWeights = this.createEmptyTransitionWeights(draft.modules);
+    ): EdgeTransitionData {
+        const modules = this.createEmptyModuleSets(draft.modules);
+        const weights = this.createEmptyTransitionWeights(draft.modules);
 
         for (const moduleId of draft.modules) {
-            const supported = supportedModules[moduleId];
-            const weights = transitionWeights[moduleId];
+            const supported = modules[moduleId];
+            const moduleWeights = weights[moduleId];
 
             for (const neighborModuleId of neighbor.modules) {
                 const weight = this.getTransitionWeight(
@@ -163,14 +160,14 @@ class RuntimeCompiler {
 
                 if (weight > 0) {
                     supported.add(neighborModuleId);
-                    weights[neighborModuleId] = weight;
+                    moduleWeights[neighborModuleId] = weight;
                 }
             }
         }
 
         return {
-            supportedModules,
-            transitionWeights,
+            modules,
+            weights,
         };
     }
 
@@ -267,7 +264,7 @@ class RuntimeCompiler {
 
                 for (const targetModuleId of targetNode.modules) {
                     const targetSupports =
-                        reverseEdge.supportedModules[targetModuleId];
+                        reverseEdge.getSupportedModules(targetModuleId);
 
                     if (targetSupports.contains(moduleId)) {
                         health++;

@@ -115,7 +115,7 @@ export class RuntimeHistory {
         for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
             const edge = edges[edgeIndex];
             const targetNode = runtimeGraph.nodes[edge.targetNodeIndex];
-            const supportedModules = edge.supportedModules[moduleId];
+            const supportedModules = edge.getSupportedModules(moduleId);
 
             for (const targetModuleId of supportedModules) {
                 targetNode.moduleHealth[edge.reverseEdgeIndex][targetModuleId]++;

@@ -162,7 +162,7 @@ export class PropagationSolver {
         const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
         for (const removedModuleId of removedModules) {
-            const supportedModules = edge.supportedModules[removedModuleId];
+            const supportedModules = edge.getSupportedModules(removedModuleId);
 
             for (const targetModuleId of supportedModules) {
                 targetHealth[targetModuleId]--;

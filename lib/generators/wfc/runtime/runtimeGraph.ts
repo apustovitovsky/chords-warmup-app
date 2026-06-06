@@ -14,10 +14,9 @@ export class RuntimeGraph {
 
         for (const edge of this.edges[nodeIndex]) {
             const targetNode = this.nodes[edge.targetNodeIndex];
-            const transitionWeights = edge.transitionWeights[moduleId];
 
             for (const targetModuleId of targetNode.modules) {
-                result += transitionWeights[targetModuleId];
+                result += edge.getTransitionWeight(moduleId, targetModuleId);
             }
         }
 
@@ -53,9 +52,23 @@ export class RuntimeGraph {
     }
 }
 
-export interface RuntimeEdge {
-    targetNodeIndex: number;
-    reverseEdgeIndex: number;
-    supportedModules: ModuleSet[];
-    transitionWeights: number[][];
+export interface EdgeTransitionData {
+    modules: ModuleSet[];
+    weights: number[][];
+}
+
+export class RuntimeEdge {
+    constructor(
+        readonly targetNodeIndex: number,
+        readonly reverseEdgeIndex: number,
+        readonly transitions: EdgeTransitionData
+    ) { }
+
+    getSupportedModules(moduleId: number): ModuleSet {
+        return this.transitions.modules[moduleId];
+    }
+
+    getTransitionWeight(fromModuleId: number, toModuleId: number): number {
+        return this.transitions.weights[fromModuleId][toModuleId];
+    }
 }

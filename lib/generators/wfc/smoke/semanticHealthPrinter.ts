@@ -92,8 +92,8 @@ function getSupportedNeighborTags(
 
     return formatWeightedModuleTags(
         moduleIndex,
-        edge.supportedModules[moduleId],
-        edge.transitionWeights[moduleId]
+        edge.getSupportedModules(moduleId),
+        edge.transitions.weights[moduleId]
     );
 }
 
@@ -105,7 +105,7 @@ function formatCompiledSupportTags(
     const support = new Set<string>();
 
     for (const edge of runtimeGraph.edges[nodeIndex]) {
-        for (const supportedModules of edge.supportedModules) {
+        for (const supportedModules of edge.transitions.modules) {
             for (const moduleId of supportedModules) {
                 support.add(formatModuleLabel(moduleIndex, moduleId));
             }
