@@ -110,15 +110,15 @@ export class RuntimeHistory {
         nodeIndex: number,
         moduleId: number
     ): void {
-        const neighbors = runtimeGraph.neighbors[nodeIndex];
+        const edges = runtimeGraph.edges[nodeIndex];
 
-        for (let neighborIndex = 0; neighborIndex < neighbors.length; neighborIndex++) {
-            const neighborContext = neighbors[neighborIndex];
-            const neighbor = runtimeGraph.nodes[neighborContext.nodeIndex];
-            const supportedModules = neighborContext.supportedModules[moduleId];
+        for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+            const edge = edges[edgeIndex];
+            const targetNode = runtimeGraph.nodes[edge.targetNodeIndex];
+            const supportedModules = edge.supportedModules[moduleId];
 
-            for (const neighborModuleId of supportedModules) {
-                neighbor.moduleHealth[neighborContext.reverseNeighborIndex][neighborModuleId]++;
+            for (const targetModuleId of supportedModules) {
+                targetNode.moduleHealth[edge.reverseEdgeIndex][targetModuleId]++;
             }
         }
     }

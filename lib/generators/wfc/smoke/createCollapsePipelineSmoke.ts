@@ -53,8 +53,6 @@ while (candidate !== null) {
     console.log(
         `\n${green(`collapse step ${step}`)}: ${formatSlotPath(nodeIndex)} -> ${formatModuleLabel(moduleIndex, moduleId)}`
     );
-    // console.log(`  ${dim("transition weight")}: ${calculateModuleTransitionWeight(slotIndex, moduleId)}`);
-
     if (historyItem) {
         printHistoryDiff(historyItem);
     }

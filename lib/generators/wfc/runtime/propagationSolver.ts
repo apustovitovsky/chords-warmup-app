@@ -140,13 +140,13 @@ export class PropagationSolver {
         nodeIndex: number,
         removedModules: ModuleSet
     ): void {
-        const neighbors = this.runtimeGraph.neighbors[nodeIndex];
+        const edges = this.runtimeGraph.edges[nodeIndex];
 
-        for (let neighborIndex = 0; neighborIndex < neighbors.length; neighborIndex++) {
+        for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
             this.propagateRemovedModulesToNeighbor(
                 nodeIndex,
                 removedModules,
-                neighborIndex
+                edgeIndex
             );
         }
     }
@@ -154,33 +154,34 @@ export class PropagationSolver {
     private propagateRemovedModulesToNeighbor(
         nodeIndex: number,
         removedModules: ModuleSet,
-        neighborIndex: number
+        edgeIndex: number
     ): void {
-        const neighborContext = this.runtimeGraph.neighbors[nodeIndex][neighborIndex];
-        const neighbor = this.runtimeGraph.nodes[neighborContext.nodeIndex];
+        const edge = this.runtimeGraph.edges[nodeIndex][edgeIndex];
+        const targetNode = this.runtimeGraph.nodes[edge.targetNodeIndex];
+        const targetHealth = targetNode.moduleHealth[edge.reverseEdgeIndex];
         const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
         for (const removedModuleId of removedModules) {
-            const supportedModules = neighborContext.supportedModules[removedModuleId];
+            const supportedModules = edge.supportedModules[removedModuleId];
 
-            for (const neighborModuleId of supportedModules) {
-                neighbor.moduleHealth[neighborContext.reverseNeighborIndex][neighborModuleId]--;
+            for (const targetModuleId of supportedModules) {
+                targetHealth[targetModuleId]--;
 
                 if (
-                    neighbor.moduleHealth[neighborContext.reverseNeighborIndex][neighborModuleId] === 0 &&
-                    neighbor.modules.contains(neighborModuleId)
+                    targetHealth[targetModuleId] === 0 &&
+                    targetNode.modules.contains(targetModuleId)
                 ) {
-                    modulesToRemove.add(neighborModuleId);
+                    modulesToRemove.add(targetModuleId);
                 }
 
-                if (neighbor.moduleHealth[neighborContext.reverseNeighborIndex][neighborModuleId] < 0) {
+                if (targetHealth[targetModuleId] < 0) {
                     throw new Error(
-                        `Module health became negative for "${neighborModuleId}".`
+                        `Module health became negative for "${targetModuleId}".`
                     );
                 }
             }
         }
 
-        this.queue.enqueue(neighborContext.nodeIndex, modulesToRemove);
+        this.queue.enqueue(edge.targetNodeIndex, modulesToRemove);
     }
 }

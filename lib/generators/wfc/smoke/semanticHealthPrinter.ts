@@ -1,7 +1,7 @@
 import type { Graph } from "../hierarchy/graph";
 import type { SemanticLayout } from "../semanticLayout";
 import type { SemanticModuleIndex } from "../semanticModuleIndex";
-import type { RuntimeGraph, RuntimeNeighbor } from "../runtime/runtimeGraph";
+import type { RuntimeEdge, RuntimeGraph } from "../runtime/runtimeGraph";
 import type { ModuleSet } from "../runtime/moduleSet";
 
 export function printSemanticHealth(
@@ -23,13 +23,13 @@ export function printSemanticHealth(
         for (const moduleId of node.modules) {
             const backSupport = getSupportedNeighborTags(
                 moduleIndex,
-                runtimeGraph.neighbors[nodeIndex],
+                runtimeGraph.edges[nodeIndex],
                 nodeIndex - 1,
                 moduleId,
             );
             const forwardSupport = getSupportedNeighborTags(
                 moduleIndex,
-                runtimeGraph.neighbors[nodeIndex],
+                runtimeGraph.edges[nodeIndex],
                 nodeIndex + 1,
                 moduleId,
             );
@@ -78,22 +78,22 @@ export function formatGraphPath(graph: Graph<string>, nodeId: number): string {
 
 function getSupportedNeighborTags(
     moduleIndex: SemanticModuleIndex,
-    neighbors: RuntimeNeighbor[],
-    neighborNodeIndex: number,
+    edges: RuntimeEdge[],
+    targetNodeIndex: number,
     moduleId: number,
 ): string {
-    const neighborContext = neighbors.find((neighbor) =>
-        neighbor.nodeIndex === neighborNodeIndex
+    const edge = edges.find((edge) =>
+        edge.targetNodeIndex === targetNodeIndex
     );
 
-    if (!neighborContext) {
+    if (!edge) {
         return dim("x");
     }
 
     return formatWeightedModuleTags(
         moduleIndex,
-        neighborContext.supportedModules[moduleId],
-        neighborContext.transitionWeights[moduleId]
+        edge.supportedModules[moduleId],
+        edge.transitionWeights[moduleId]
     );
 }
 
@@ -104,8 +104,8 @@ function formatCompiledSupportTags(
 ): string {
     const support = new Set<string>();
 
-    for (const neighborContext of runtimeGraph.neighbors[nodeIndex]) {
-        for (const supportedModules of neighborContext.supportedModules) {
+    for (const edge of runtimeGraph.edges[nodeIndex]) {
+        for (const supportedModules of edge.supportedModules) {
             for (const moduleId of supportedModules) {
                 support.add(formatModuleLabel(moduleIndex, moduleId));
             }

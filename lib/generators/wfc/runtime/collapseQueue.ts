@@ -1,7 +1,6 @@
 import { PriorityQueue } from "./helpers/priorityQueue";
 import type { RuntimeGraph } from "./runtimeGraph";
 import type { RuntimeNode } from "./runtimeNode";
-import { calculateModuleTransitionWeight } from "./transitionWeight";
 
 interface CollapseQueueEntry {
     nodeIndex: number;
@@ -38,7 +37,7 @@ export class CollapseQueue {
     }
 
     updateMany(nodeIndices: Iterable<number>): void {
-        for (const nodeIndex of this.getAffectedNodeIndices(nodeIndices)) {
+        for (const nodeIndex of this.runtimeGraph.getAffectedNodeIndices(nodeIndices)) {
             this.update(nodeIndex);
         }
     }
@@ -51,7 +50,7 @@ export class CollapseQueue {
             return;
         }
 
-        const moduleWeights = this.calculateModuleWeights(nodeIndex);
+        const moduleWeights = this.runtimeGraph.calculateModuleWeights(nodeIndex);
         const entropy = this.calculateEntropy(node, moduleWeights);
 
         this.entropyQueue.push({
@@ -61,20 +60,6 @@ export class CollapseQueue {
             version,
             moduleWeights,
         });
-    }
-
-    private calculateModuleWeights(nodeIndex: number): Map<number, number> {
-        const result = new Map<number, number>();
-        const node = this.runtimeGraph.nodes[nodeIndex];
-
-        for (const moduleId of node.modules) {
-            result.set(
-                moduleId,
-                calculateModuleTransitionWeight(this.runtimeGraph, nodeIndex, moduleId)
-            );
-        }
-
-        return result;
     }
 
     nextCandidate(): {
@@ -125,19 +110,6 @@ export class CollapseQueue {
         return Math.log(sumWeight) - sumWeightLogWeight / sumWeight;
     }
 
-    private getAffectedNodeIndices(nodeIndices: Iterable<number>): Set<number> {
-        const result = new Set<number>();
-
-        for (const nodeIndex of nodeIndices) {
-            result.add(nodeIndex);
-
-            for (const neighborContext of this.runtimeGraph.neighbors[nodeIndex]) {
-                result.add(neighborContext.nodeIndex);
-            }
-        }
-
-        return result;
-    }
 }
 
 function compareCollapseQueueEntries(
