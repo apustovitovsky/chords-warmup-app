@@ -1,90 +1,106 @@
 import { CollapseSolver } from "../runtime/collapseSolver";
 import {
     compilePatternPass,
-    createCollapsedPass,
-    type CompiledPatternPass,
-} from "./passCompiler";
-import type { CollapsedPass, PatternPass } from "./pass";
+    PatternResolverOptions,
+    type CompiledPattern,
+} from "./patternResolver";
+import type {
+    PatternCollection
+} from "./patternDefinition";
 
-const formPass: PatternPass = {
+const root = new Array(8).fill("root");
+
+const formPass: PatternCollection = {
     name: "form",
-    domainOverlap: 0,
     patterns: [
         {
-            parentValues: null,
-            values: [
-                { value: "intro", size: 2 },
-                { value: "verse", size: 4 },
-                { value: "outro", size: 2 },
-            ],
+            parentValues: ["root"],
+            values: ["intro", "verse", "chorus", "verse", "outro"],
+        },
+        // {
+        //     parentValues: ["root"],
+        //     values: ["intro", "verse", "chorus", "verse", "outro"],
+        // },
+    ],
+};
+
+const formOptions: PatternResolverOptions = {
+    resolution: 1,
+    overlap: 0,
+};
+
+const chordPass: PatternCollection = {
+    name: "chords",
+    patterns: [
+        {
+            parentValues: ["intro"],
+            values: ["C", "Am", "F"],
         },
         {
-            parentValues: null,
-            values: [
-                { value: "intro", size: 2 },
-                { value: "chorus", size: 4 },
-                { value: "chorus", size: 4 },
-            ],
+            parentValues: ["verse"],
+            values: ["C", "G", "Am", "F"],
+        },
+        {
+            parentValues: ["chorus"],
+            values: ["F", "G", "C", "Am"],
+        },
+        {
+            parentValues: ["outro"],
+            values: ["F", "Fm"],
         },
     ],
 };
 
-const chordPass: PatternPass = {
-    name: "chords",
-    domainOverlap: 1,
-    patterns: [
-        {
-            parentValues: ["intro", "outro"],
-            values: [
-                { value: "C", size: 1 },
-                { value: "Am", size: 1 },
-                { value: "F", size: 1 },
-                { value: "Fm", size: 1 },
-            ],
-        },
-        {
-            parentValues: ["verse", "chorus"],
-            values: [
-                { value: "C", size: 1 },
-                { value: "G", size: 1 },
-                { value: "Am", size: 1 },
-                { value: "F", size: 1 },
-            ],
-        },
-    ],
+const chordOptions: PatternResolverOptions = {
+    resolution: 4,
+    overlap: 1,
 };
 
 console.log("\nmultipass smoke");
+printValues("root input", root);
 
-const form = runPass(formPass, null);
+const form = runPass(formPass, root, formOptions);
 printCompiledPass("form graph", form.compiled);
-printCollapsedPass("form result", form.collapsed);
+printValues("form result", form.collapsed);
 
-const chords = runPass(chordPass, form.collapsed);
+const chords = runPass(chordPass, form.collapsed, chordOptions);
 printCompiledPass("chord graph", chords.compiled);
-printCollapsedPass("chord result", chords.collapsed);
+printValues("chord result", chords.collapsed);
 
 function runPass(
-    pass: PatternPass,
-    parent: CollapsedPass | null
+    pass: PatternCollection,
+    parent: string[],
+    options: PatternResolverOptions
 ): {
-    compiled: CompiledPatternPass;
-    collapsed: CollapsedPass;
+    compiled: CompiledPattern;
+    collapsed: string[];
 } {
-    const compiled = compilePatternPass(pass, parent);
+    const compiled = compilePatternPass(pass, parent, options);
     const solver = new CollapseSolver(compiled.runtimeGraph);
 
     solver.solve();
 
     return {
         compiled,
-        collapsed: createCollapsedPass(compiled),
+        collapsed: getResolvedValues(compiled),
     };
+}
+
+function getResolvedValues(compiled: CompiledPattern): string[] {
+    return compiled.runtimeGraph.nodes.map((node, nodeIndex) => {
+        const moduleId = node.resolvedModuleId;
+
+        if (moduleId === null) {
+            throw new Error(`Cannot decode unresolved node "${nodeIndex}".`);
+        }
+
+        return compiled.modules[moduleId].value;
+    });
 }
 
 function printCompiledPass(
     title: string,
-    compiled: CompiledPatternPass
+    compiled: CompiledPattern
 ): void {
     console.log(`\n${green(title)}`);
 
@@ -101,20 +117,16 @@ function printCompiledPass(
     }
 }
 
-function printCollapsedPass(title: string, pass: CollapsedPass): void {
+function printValues(title: string, values: string[]): void {
     console.log(`\n${green(title)}`);
 
-    for (let index = 0; index < pass.items.length; index++) {
-        const item = pass.items[index];
-
-        console.log(
-            `  ${dim(`${index}.`)} ${gold(item.value)} ${dim(`[${item.startIndex}, ${item.endIndex}) size=${item.size}`)}`
-        );
+    for (let index = 0; index < values.length; index++) {
+        console.log(`  ${dim(`${index}.`)} ${gold(values[index])}`);
     }
 }
 
 function formatModuleIds(
-    compiled: CompiledPatternPass,
+    compiled: CompiledPattern,
     moduleIds: number[]
 ): string {
     return moduleIds
