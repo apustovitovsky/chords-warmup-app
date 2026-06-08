@@ -1,119 +1,175 @@
-import { ModuleSet } from "../runtime/moduleSet";
-import { PatternCollection, PatternDefinition } from "./patternDefinition";
+import type { PatternCollection, PatternDefinition } from "./patternDefinition";
 
-export interface PatternModule<TValue> {
+export interface PatternModule<TValue = string> {
     id: number;
-    domain: TValue;
+    domainId: number;
     value: TValue;
 }
 
+interface ModuleBuildResult<TValue> {
+    modules: PatternModule<TValue>[];
+    moduleValueIds: number[];
+}
+
+export class Domain<TValue = string> {
+    constructor(
+        readonly domains: TValue[],
+        readonly modules: PatternModule<TValue>[],
+        readonly moduleIdsByDomainId: number[][],
+        private readonly moduleValueIds: number[],
+        private readonly valueTransitionWeights: number[][]
+    ) { }
+
+    getDomainId(domain: TValue): number {
+        const domainId = this.domains.indexOf(domain);
+
+        if (domainId < 0) {
+            throw new Error(`Unknown domain "${String(domain)}".`);
+        }
+
+        return domainId;
+    }
+
+    getTransitionWeight(fromModuleId: number, toModuleId: number): number {
+        const fromValueId = this.moduleValueIds[fromModuleId];
+        const toValueId = this.moduleValueIds[toModuleId];
+
+        return this.valueTransitionWeights[fromValueId]?.[toValueId] ?? 0;
+    }
+}
+
 export class DomainBuilder<TValue = string> {
-    build(definition: PatternCollection<TValue>): Domain<TValue> {
-        const modules = this.createModules(definition.patterns);
-        const transitions = this.createTransitions(definition.patterns);
-        const modulesByDomain = this.createModulesByDomain(modules);
-        const supportByDomain = this.createSupportByDomain(
-            modules,
-            modulesByDomain,
-            transitions
+    build(collection: PatternCollection<TValue>): Domain<TValue> {
+        const domains = this.createDomains(collection.patterns);
+        const values = this.createValues(collection.patterns);
+        const moduleResult = this.createModules(
+            collection.patterns,
+            domains,
+            values
+        );
+        const moduleIdsByDomainId = this.createModuleIdsByDomainId(
+            domains,
+            moduleResult.modules
+        );
+        const valueTransitionWeights = this.createValueTransitionWeights(
+            collection.patterns,
+            values
         );
 
         return new Domain(
-            modules,
-            modulesByDomain,
-            supportByDomain
+            domains,
+            moduleResult.modules,
+            moduleIdsByDomainId,
+            moduleResult.moduleValueIds,
+            valueTransitionWeights
         );
     }
 
-    private createModules(
+    private createDomains(
         patterns: PatternDefinition<TValue>[]
-    ): PatternModule<TValue>[] {
-        const modules: PatternModule<TValue>[] = [];
+    ): TValue[] {
+        const domains: TValue[] = [];
+        const seen = new Set<TValue>();
 
         for (const pattern of patterns) {
             for (const domain of pattern.parentValues) {
+                if (seen.has(domain)) {
+                    continue;
+                }
+
+                seen.add(domain);
+                domains.push(domain);
+            }
+        }
+
+        return domains;
+    }
+
+    private createValues(
+        patterns: PatternDefinition<TValue>[]
+    ): TValue[] {
+        const values: TValue[] = [];
+        const seen = new Set<TValue>();
+
+        for (const pattern of patterns) {
+            for (const value of pattern.values) {
+                if (seen.has(value)) {
+                    continue;
+                }
+
+                seen.add(value);
+                values.push(value);
+            }
+        }
+
+        return values;
+    }
+
+    private createModules(
+        patterns: PatternDefinition<TValue>[],
+        domains: TValue[],
+        values: TValue[]
+    ): ModuleBuildResult<TValue> {
+        const modules: PatternModule<TValue>[] = [];
+        const moduleValueIds: number[] = [];
+
+        for (const pattern of patterns) {
+            for (const domain of pattern.parentValues) {
+                const domainId = domains.indexOf(domain);
+
                 for (const value of pattern.values) {
-                    if (this.hasModule(modules, domain, value)) {
+                    if (this.hasModule(modules, domainId, value)) {
                         continue;
                     }
 
                     modules.push({
                         id: modules.length,
-                        domain,
+                        domainId,
                         value,
                     });
+                    moduleValueIds.push(values.indexOf(value));
                 }
             }
         }
 
-        return modules;
+        return {
+            modules,
+            moduleValueIds,
+        };
     }
 
-    private createModulesByDomain(
+    private createModuleIdsByDomainId(
+        domains: TValue[],
         modules: PatternModule<TValue>[]
-    ): Map<TValue, ModuleSet> {
-        const result = new Map<TValue, ModuleSet>();
+    ): number[][] {
+        const result = Array.from(
+            { length: domains.length },
+            () => [] as number[]
+        );
 
         for (const module of modules) {
-            let moduleSet = result.get(module.domain);
-
-            if (!moduleSet) {
-                moduleSet = new ModuleSet(modules.length);
-                result.set(module.domain, moduleSet);
-            }
-
-            moduleSet.add(module.id);
+            result[module.domainId].push(module.id);
         }
 
         return result;
     }
 
-    private createTransitions(
-        patterns: PatternDefinition<TValue>[]
-    ): Array<{ from: TValue; to: TValue }> {
-        const transitions: Array<{ from: TValue; to: TValue }> = [];
+    private createValueTransitionWeights(
+        patterns: PatternDefinition<TValue>[],
+        values: TValue[]
+    ): number[][] {
+        const result = Array.from(
+            { length: values.length },
+            () => new Array(values.length).fill(0)
+        );
 
         for (const pattern of patterns) {
             for (let index = 0; index < pattern.values.length - 1; index++) {
-                transitions.push({
-                    from: pattern.values[index],
-                    to: pattern.values[index + 1],
-                });
+                const fromValueId = values.indexOf(pattern.values[index]);
+                const toValueId = values.indexOf(pattern.values[index + 1]);
+
+                result[fromValueId][toValueId]++;
             }
-        }
-
-        return transitions;
-    }
-
-    private createSupportByDomain(
-        modules: PatternModule<TValue>[],
-        modulesByDomain: Map<TValue, ModuleSet>,
-        transitions: Array<{ from: TValue; to: TValue }>
-    ): Map<TValue, Map<number, ModuleSet>> {
-        const result = new Map<TValue, Map<number, ModuleSet>>();
-
-        for (const [targetDomain, targetModules] of modulesByDomain) {
-            const supportBySourceModule = new Map<number, ModuleSet>();
-
-            for (const sourceModule of modules) {
-                const supportedModules = new ModuleSet(modules.length);
-
-                for (const targetModuleId of targetModules) {
-                    const targetModule = modules[targetModuleId];
-
-                    if (this.hasTransition(
-                        transitions,
-                        sourceModule.value,
-                        targetModule.value
-                    )) {
-                        supportedModules.add(targetModule.id);
-                    }
-                }
-
-                supportBySourceModule.set(sourceModule.id, supportedModules);
-            }
-
-            result.set(targetDomain, supportBySourceModule);
         }
 
         return result;
@@ -121,56 +177,12 @@ export class DomainBuilder<TValue = string> {
 
     private hasModule(
         modules: PatternModule<TValue>[],
-        domain: TValue,
+        domainId: number,
         value: TValue
     ): boolean {
         return modules.some((module) =>
-            module.domain === domain &&
+            module.domainId === domainId &&
             module.value === value
         );
     }
-
-    private hasTransition(
-        transitions: Array<{ from: TValue; to: TValue }>,
-        from: TValue,
-        to: TValue
-    ): boolean {
-        return transitions.some((transition) =>
-            transition.from === from &&
-            transition.to === to
-        );
-    }
 }
-
-export class Domain<TValue = string> {
-    constructor(
-        readonly modules: PatternModule<TValue>[],
-        private readonly modulesByDomain: Map<TValue, ModuleSet>,
-        private readonly supportByDomain: Map<TValue, Map<number, ModuleSet>>
-    ) { }
-
-    getModuleSet(domain: TValue): ModuleSet {
-        return this.modulesByDomain.get(domain)
-            ?? new ModuleSet(this.modules.length);
-    }
-
-    getSupportedModules(
-        targetDomain: TValue,
-        sourceModuleId: number
-    ): ModuleSet {
-        return this.supportByDomain
-            .get(targetDomain)
-            ?.get(sourceModuleId)
-            ?? new ModuleSet(this.modules.length);
-    }
-}
-
-// const domain = new DomainBuilder().build(patternDefinition);
-// const layout = new LayoutBuilder(parent).build(options);
-
-// for each slot:
-//     for each parentDomain of layout.items[slot]:
-// slotMask.addSet(domain.getModuleSet(parentDomain))
-
-// for each edge:
-//     weight = domain.getTransitionWeight(sourceModuleId, targetModuleId)

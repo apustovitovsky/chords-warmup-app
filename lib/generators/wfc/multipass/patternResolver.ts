@@ -4,19 +4,12 @@ import { RuntimeGraph } from "../runtime/runtimeGraph";
 import { RuntimeNode } from "../runtime/runtimeNode";
 import type {
     PatternCollection,
-    PatternDefinition
 } from "./patternDefinition";
 import {
     LayoutBuilder,
     type Layout,
 } from "./layoutBuilder";
-
-export interface PatternModule<TValue> {
-    id: number;
-    value: TValue;
-    valueId: number;
-    label: string;
-}
+import { DomainBuilder, type Domain, type PatternModule } from "./domainBuilder";
 
 export interface PatternResolverOptions {
     resolution: number;
@@ -38,26 +31,23 @@ export function compilePatternPass<TValue = string>(
 }
 
 export class PatternResolver<TValue = string> {
-    private readonly valueIdByKey = new Map<string, number>();
-    private readonly moduleByKey = new Map<string, PatternModule<TValue>>();
-    private readonly modules: PatternModule<TValue>[] = [];
-    private readonly valueTransitionWeights = new Map<number, Map<number, number>>();
-    private nextValueId = 0;
-
     compile(
         pass: PatternCollection<TValue>,
         parent: TValue[],
         options: PatternResolverOptions
     ): CompiledPattern<TValue> {
-        this.initializeTransitions(pass.patterns);
-        const layout = new LayoutBuilder(parent).build(options);
+        const domain = new DomainBuilder<TValue>().build(pass);
+        const parentDomainIds = parent.map((value) =>
+            domain.getDomainId(value)
+        );
+        const layout = new LayoutBuilder(parentDomainIds).build(options);
 
         const slotModules = this.createSlotModules(
-            pass,
+            domain,
             layout
         );
         const adjacency = this.createAdjacency(slotModules.length);
-        const edges = this.createEdges(slotModules, adjacency);
+        const edges = this.createEdges(domain, slotModules, adjacency);
         const nodes = slotModules.map((modules, nodeIndex) => new RuntimeNode(
             modules,
             edges[nodeIndex].length
@@ -66,7 +56,7 @@ export class PatternResolver<TValue = string> {
             nodes,
             edges,
             nodes.map((_, nodeIndex) => nodeIndex),
-            this.modules.length
+            domain.modules.length
         );
 
         this.initializeModuleHealth(runtimeGraph);
@@ -74,62 +64,32 @@ export class PatternResolver<TValue = string> {
         return {
             pass,
             runtimeGraph,
-            modules: this.modules,
+            modules: domain.modules,
         };
     }
 
     private createSlotModules(
-        pass: PatternCollection<TValue>,
-        layout: Layout<TValue>
+        domain: Domain<TValue>,
+        layout: Layout
     ): ModuleSet[] {
-        const moduleIdsBySlot = Array.from(
+        return Array.from(
             { length: layout.items.length },
-            () => [] as number[]
-        );
+            (_, slotIndex) => {
+                const modules = new ModuleSet(domain.modules.length);
 
-        for (let slotIndex = 0; slotIndex < layout.items.length; slotIndex++) {
-            for (const parentValue of layout.items[slotIndex]) {
-                for (const pattern of this.getPatternsForParentValue(
-                    pass,
-                    parentValue
-                )) {
-                    for (const value of pattern.values) {
-                        moduleIdsBySlot[slotIndex].push(
-                            this.getModule(pattern, value).id
-                        );
+                for (const domainId of layout.items[slotIndex]) {
+                    for (const moduleId of domain.moduleIdsByDomainId[domainId]) {
+                        modules.add(moduleId);
                     }
                 }
+
+                if (modules.empty) {
+                    throw new Error(`Pattern pass produced empty domain for slot "${slotIndex}".`);
+                }
+
+                return modules;
             }
-        }
-
-        return this.createModuleSets(moduleIdsBySlot);
-    }
-
-    private getPatternsForParentValue(
-        pass: PatternCollection<TValue>,
-        parentValue: TValue
-    ): PatternDefinition<TValue>[] {
-        const parentKey = this.getValueKey(parentValue);
-
-        return pass.patterns.filter((pattern) =>
-            pattern.parentValues.some((value) =>
-                this.getValueKey(value) === parentKey
-            )
         );
-    }
-
-    private createModuleSets(moduleIdsBySlot: number[][]): ModuleSet[] {
-        const capacity = this.modules.length;
-
-        return moduleIdsBySlot.map((moduleIds, slotIndex) => {
-            const modules = ModuleSet.fromIds(capacity, moduleIds);
-
-            if (modules.empty) {
-                throw new Error(`Pattern pass produced empty domain for slot "${slotIndex}".`);
-            }
-
-            return modules;
-        });
     }
 
     private createAdjacency(nodeCount: number): number[][] {
@@ -149,6 +109,7 @@ export class PatternResolver<TValue = string> {
     }
 
     private createEdges(
+        domain: Domain<TValue>,
         slotModules: ModuleSet[],
         adjacency: number[][]
     ): RuntimeEdge[][] {
@@ -161,6 +122,7 @@ export class PatternResolver<TValue = string> {
                     targetNodeIndex
                 ),
                 this.createEdgeTransitionData(
+                    domain,
                     slotModules[sourceNodeIndex],
                     slotModules[targetNodeIndex]
                 )
@@ -185,18 +147,22 @@ export class PatternResolver<TValue = string> {
     }
 
     private createEdgeTransitionData(
+        domain: Domain<TValue>,
         sourceModules: ModuleSet,
         targetModules: ModuleSet
     ): EdgeTransitionData {
-        const modules = this.createEmptyModuleSets();
-        const weights = this.createEmptyTransitionWeights();
+        const modules = this.createEmptyModuleSets(domain.modules.length);
+        const weights = this.createEmptyTransitionWeights(domain.modules.length);
 
         for (const moduleId of sourceModules) {
             const supported = modules[moduleId];
             const moduleWeights = weights[moduleId];
 
             for (const targetModuleId of targetModules) {
-                const weight = this.getTransitionWeight(moduleId, targetModuleId);
+                const weight = domain.getTransitionWeight(
+                    moduleId,
+                    targetModuleId
+                );
 
                 if (weight > 0) {
                     supported.add(targetModuleId);
@@ -211,21 +177,21 @@ export class PatternResolver<TValue = string> {
         };
     }
 
-    private createEmptyModuleSets(): ModuleSet[] {
+    private createEmptyModuleSets(moduleCount: number): ModuleSet[] {
         const result: ModuleSet[] = [];
 
-        for (let moduleId = 0; moduleId < this.modules.length; moduleId++) {
-            result[moduleId] = new ModuleSet(this.modules.length);
+        for (let moduleId = 0; moduleId < moduleCount; moduleId++) {
+            result[moduleId] = new ModuleSet(moduleCount);
         }
 
         return result;
     }
 
-    private createEmptyTransitionWeights(): number[][] {
+    private createEmptyTransitionWeights(moduleCount: number): number[][] {
         const result: number[][] = [];
 
-        for (let moduleId = 0; moduleId < this.modules.length; moduleId++) {
-            result[moduleId] = new Array(this.modules.length).fill(0);
+        for (let moduleId = 0; moduleId < moduleCount; moduleId++) {
+            result[moduleId] = new Array(moduleCount).fill(0);
         }
 
         return result;
@@ -255,83 +221,5 @@ export class PatternResolver<TValue = string> {
                 }
             }
         }
-    }
-
-    private initializeTransitions(patterns: PatternDefinition<TValue>[]): void {
-        for (const pattern of patterns) {
-            for (let index = 0; index < pattern.values.length - 1; index++) {
-                const fromValueId = this.getValueId(pattern.values[index]);
-                const toValueId = this.getValueId(pattern.values[index + 1]);
-
-                this.addTransitionWeight(fromValueId, toValueId);
-            }
-        }
-    }
-
-    private addTransitionWeight(fromValueId: number, toValueId: number): void {
-        let weights = this.valueTransitionWeights.get(fromValueId);
-
-        if (!weights) {
-            weights = new Map();
-            this.valueTransitionWeights.set(fromValueId, weights);
-        }
-
-        weights.set(toValueId, (weights.get(toValueId) ?? 0) + 1);
-    }
-
-    private getTransitionWeight(moduleId: number, targetModuleId: number): number {
-        const fromValueId = this.modules[moduleId].valueId;
-        const toValueId = this.modules[targetModuleId].valueId;
-
-        return this.valueTransitionWeights.get(fromValueId)?.get(toValueId) ?? 0;
-    }
-
-    private getModule(
-        pattern: PatternDefinition<TValue>,
-        value: TValue
-    ): PatternModule<TValue> {
-        const parentKey = this.getParentKey(pattern.parentValues);
-        const valueKey = this.getValueKey(value);
-        const moduleKey = `${parentKey}\u0000${valueKey}`;
-        let module = this.moduleByKey.get(moduleKey);
-
-        if (module) {
-            return module;
-        }
-
-        module = {
-            id: this.modules.length,
-            value,
-            valueId: this.getValueId(value),
-            label: valueKey,
-        };
-        this.modules.push(module);
-        this.moduleByKey.set(moduleKey, module);
-
-        return module;
-    }
-
-    private getValueId(value: TValue): number {
-        const key = this.getValueKey(value);
-        let valueId = this.valueIdByKey.get(key);
-
-        if (valueId === undefined) {
-            valueId = this.nextValueId;
-            this.nextValueId++;
-            this.valueIdByKey.set(key, valueId);
-        }
-
-        return valueId;
-    }
-
-    private getParentKey(parentValues: TValue[]): string {
-        return parentValues
-            .map((value) => this.getValueKey(value))
-            .sort()
-            .join("|");
-    }
-
-    private getValueKey(value: TValue): string {
-        return String(value);
     }
 }

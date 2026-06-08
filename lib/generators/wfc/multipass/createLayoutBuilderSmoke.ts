@@ -1,6 +1,7 @@
 import { LayoutBuilder, type Layout, type LayoutBuilderOptions } from "./layoutBuilder";
 
-const values = ["intro", "verse", "chorus", "chorus", "verse", "outro"];
+const domains = ["intro", "verse", "chorus", "outro"];
+const domainIds = [0, 1, 2, 2, 1, 3];
 const cases: LayoutBuilderOptions[] = [
     { resolution: 1, overlap: 0 },
     { resolution: 2, overlap: 0 },
@@ -9,10 +10,10 @@ const cases: LayoutBuilderOptions[] = [
 ];
 
 console.log("\nlayout builder smoke");
-console.log(`\ninput: ${formatValues(values)}`);
+console.log(`\ninput: ${formatDomainIds(domainIds)}`);
 
 for (const options of cases) {
-    const layout = new LayoutBuilder(values).build(options);
+    const layout = new LayoutBuilder(domainIds).build(options);
 
     console.log(
         `\nresolution=${options.resolution}, overlap=${options.overlap}`
@@ -20,16 +21,18 @@ for (const options of cases) {
     printLayout(layout);
 }
 
-function printLayout(layout: Layout<string>): void {
+function printLayout(layout: Layout): void {
     for (let slotIndex = 0; slotIndex < layout.items.length; slotIndex++) {
         console.log(
-            `  ${dim(`${slotIndex}.`)} ${formatValues(layout.items[slotIndex])}`
+            `  ${dim(`${slotIndex}.`)} ${formatDomainIds(layout.items[slotIndex])}`
         );
     }
 }
 
-function formatValues(valuesToFormat: string[]): string {
-    return valuesToFormat.map(gold).join(", ") || red("-");
+function formatDomainIds(domainIdsToFormat: number[]): string {
+    return domainIdsToFormat
+        .map((domainId) => `${gold(domains[domainId])}${dim(`:${domainId}`)}`)
+        .join(", ") || red("-");
 }
 
 function gold(value: unknown): string {

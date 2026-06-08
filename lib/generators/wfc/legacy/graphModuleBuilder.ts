@@ -1,4 +1,4 @@
-import type { Module } from "./runtime/module";
+import type { Module } from "./module";
 import type { Graph } from "./hierarchy/graph";
 import type { SemanticGraph } from "./hierarchy/semanticGraph";
 import {

@@ -1,9 +1,9 @@
-import { ModuleSet } from "./moduleSet";
-import { RuntimeGraph } from "./runtimeGraph";
-import { RuntimeNode } from "./runtimeNode";
-import type { SemanticModuleIndex } from "../semanticModuleIndex";
-import type { SemanticLayout, SemanticLayoutSlot } from "../semanticLayout";
-import { type EdgeTransitionData, RuntimeEdge } from "./runtimeEdge";
+import { ModuleSet } from "../runtime/moduleSet";
+import { RuntimeGraph } from "../runtime/runtimeGraph";
+import { RuntimeNode } from "../runtime/runtimeNode";
+import type { SemanticModuleIndex } from "./semanticModuleIndex";
+import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
+import { type EdgeTransitionData, RuntimeEdge } from "../runtime/runtimeEdge";
 
 interface RuntimeNodeDraft {
     modules: ModuleSet;

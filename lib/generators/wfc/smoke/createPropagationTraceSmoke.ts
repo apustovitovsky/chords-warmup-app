@@ -1,15 +1,15 @@
-import { createSemanticGraph } from "../hierarchy/semanticGraph";
-import type { Graph } from "../hierarchy/graph";
-import { createSemanticModuleIndex } from "../graphModuleBuilder";
-import { createRuntimeGraph } from "../runtime/runtimeCompiler";
+import { createSemanticGraph } from "../legacy/hierarchy/semanticGraph";
+import type { Graph } from "../legacy/hierarchy/graph";
+import { createSemanticModuleIndex } from "../legacy/graphModuleBuilder";
+import { createRuntimeGraph } from "../legacy/runtimeCompiler";
 import { RuntimeHistory } from "../runtime/runtimeHistory";
 import { PropagationSolver } from "../runtime/propagationSolver";
 import type { ModuleSet } from "../runtime/moduleSet";
 import type { RuntimeGraph } from "../runtime/runtimeGraph";
 import type { RuntimeNode } from "../runtime/runtimeNode";
-import type { SemanticLayout } from "../semanticLayout";
-import type { SemanticModuleIndex } from "../semanticModuleIndex";
-import { createSemanticLayout } from "../semanticLayoutBuilder";
+import type { SemanticLayout } from "../legacy/semanticLayout";
+import type { SemanticModuleIndex } from "../legacy/semanticModuleIndex";
+import { createSemanticLayout } from "../legacy/semanticLayoutBuilder";
 import { chordPatternLibrary, chordPatternSegments } from "./chordPatternSmokeData";
 
 const collapseSlotIndex = 1;

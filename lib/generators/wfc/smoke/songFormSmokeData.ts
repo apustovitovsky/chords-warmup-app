@@ -1,5 +1,5 @@
-import type { SemanticHierarchy } from "../hierarchy/semanticHierarchy";
-import type { SemanticSegmentDefinition } from "../semanticLayout";
+import type { SemanticHierarchy } from "../legacy/hierarchy/semanticHierarchy";
+import type { SemanticSegmentDefinition } from "../legacy/semanticLayout";
 
 export const songFormLibrary: SemanticHierarchy = {
     patterns: [

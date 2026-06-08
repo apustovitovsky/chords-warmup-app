@@ -133,7 +133,7 @@ function formatModuleIds(
         .map((moduleId) => {
             const module = compiled.modules[moduleId];
 
-            return `${gold(module.label)}${dim(`:${module.id}`)}`;
+            return `${gold(module.value)}${dim(`:${module.id}`)}`;
         })
         .join(", ") || red("-");
 }

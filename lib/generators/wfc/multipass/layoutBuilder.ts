@@ -1,5 +1,5 @@
-export interface Layout<TValue = string> {
-    items: TValue[][];
+export interface Layout {
+    items: number[][];
 }
 
 export interface LayoutBuilderOptions {
@@ -7,12 +7,12 @@ export interface LayoutBuilderOptions {
     overlap: number;
 }
 
-export class LayoutBuilder<TValue = string> {
-    constructor(private readonly values: TValue[]) { }
+export class LayoutBuilder {
+    constructor(private readonly domainIds: number[]) { }
 
-    build(options: LayoutBuilderOptions): Layout<TValue> {
-        const length = this.values.length * options.resolution;
-        const items: TValue[][] = Array.from({ length }, () => []);
+    build(options: LayoutBuilderOptions): Layout {
+        const length = this.domainIds.length * options.resolution;
+        const items: number[][] = Array.from({ length }, () => []);
 
         for (const segment of this.createSegments()) {
             const startIndex = Math.max(
@@ -25,7 +25,7 @@ export class LayoutBuilder<TValue = string> {
             );
 
             for (let slotIndex = startIndex; slotIndex < endIndex; slotIndex++) {
-                items[slotIndex].push(segment.value);
+                items[slotIndex].push(segment.domainId);
             }
         }
 
@@ -33,39 +33,39 @@ export class LayoutBuilder<TValue = string> {
     }
 
     private createSegments(): {
-        value: TValue;
+        domainId: number;
         startIndex: number;
         endIndex: number;
     }[] {
-        if (this.values.length === 0) {
+        if (this.domainIds.length === 0) {
             return [];
         }
 
         const result: {
-            value: TValue;
+            domainId: number;
             startIndex: number;
             endIndex: number;
         }[] = [];
 
         let startIndex = 0;
-        let currentValue = this.values[0];
+        let currentDomainId = this.domainIds[0];
 
-        for (let index = 1; index <= this.values.length; index++) {
-            const value = this.values[index];
+        for (let index = 1; index <= this.domainIds.length; index++) {
+            const domainId = this.domainIds[index];
 
-            if (value === currentValue) {
+            if (domainId === currentDomainId) {
                 continue;
             }
 
             result.push({
-                value: currentValue,
+                domainId: currentDomainId,
                 startIndex,
                 endIndex: index,
             });
 
-            if (value !== undefined) {
+            if (domainId !== undefined) {
                 startIndex = index;
-                currentValue = value;
+                currentDomainId = domainId;
             }
         }
 

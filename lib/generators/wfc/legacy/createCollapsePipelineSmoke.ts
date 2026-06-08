@@ -1,18 +1,18 @@
-import { createSemanticGraph } from "../hierarchy/semanticGraph";
-import { createSemanticModuleIndex } from "../graphModuleBuilder";
+import { createSemanticGraph } from "./hierarchy/semanticGraph";
+import { createSemanticModuleIndex } from "./graphModuleBuilder";
 import { CollapseQueue } from "../runtime/collapseQueue";
 import { CollapseSolver } from "../runtime/collapseSolver";
 import { PropagationSolver } from "../runtime/propagationSolver";
 import { RuntimeHistory, type RuntimeHistoryItem } from "../runtime/runtimeHistory";
-import { createRuntimeGraph } from "../runtime/runtimeCompiler";
-import { createSemanticLayout } from "../semanticLayoutBuilder";
-import { chordPatternLibrary, chordPatternSegments } from "./chordPatternSmokeData";
+import { createRuntimeGraph } from "./runtimeCompiler";
+import { createSemanticLayout } from "./semanticLayoutBuilder";
+import { chordPatternLibrary, chordPatternSegments } from "../smoke/chordPatternSmokeData";
 import {
     formatGraphPath,
     formatModuleLabel,
     formatModuleTags,
     printSemanticHealth,
-} from "./semanticHealthPrinter";
+} from "../smoke/semanticHealthPrinter";
 
 const semanticGraph = createSemanticGraph(chordPatternLibrary);
 const moduleIndex = createSemanticModuleIndex(chordPatternLibrary, semanticGraph);

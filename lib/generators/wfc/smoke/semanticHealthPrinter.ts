@@ -1,6 +1,6 @@
-import type { Graph } from "../hierarchy/graph";
-import type { SemanticLayout } from "../semanticLayout";
-import type { SemanticModuleIndex } from "../semanticModuleIndex";
+import type { Graph } from "../legacy/hierarchy/graph";
+import type { SemanticLayout } from "../legacy/semanticLayout";
+import type { SemanticModuleIndex } from "../legacy/semanticModuleIndex";
 import type { RuntimeEdge } from "../runtime/runtimeEdge";
 import type { RuntimeGraph } from "../runtime/runtimeGraph";
 import type { ModuleSet } from "../runtime/moduleSet";

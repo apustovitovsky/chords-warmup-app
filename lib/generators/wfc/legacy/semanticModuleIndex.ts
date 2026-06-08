@@ -1,5 +1,5 @@
-import type { Module } from "./runtime/module";
-import { ModuleSet } from "./runtime/moduleSet";
+import type { Module } from "./module";
+import { ModuleSet } from "../runtime/moduleSet";
 import type { SemanticGraph } from "./hierarchy/semanticGraph";
 import type { ModuleTransition } from "./graphModuleBuilder";
 
