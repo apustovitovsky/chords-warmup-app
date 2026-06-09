@@ -1,5 +1,5 @@
 import { ModuleSet } from "../runtime/moduleSet";
-import { Direction, type Direction as DirectionType } from "../runtime/direction";
+import { Direction } from "../runtime/direction";
 import { RuntimeGraph } from "../runtime/runtimeGraph";
 import { RuntimeNode, type RuntimeNeighbor } from "../runtime/runtimeNode";
 import type { Domain } from "./domainBuilder";
@@ -60,7 +60,7 @@ export class GraphBuilder {
         domain: Domain,
         nodeModules: ModuleSet[],
         nodeIndex: number,
-        direction: DirectionType
+        direction: Direction
     ): RuntimeNeighbor | null {
         const targetNodeIndex = direction === Direction.Back
             ? nodeIndex - 1
@@ -86,7 +86,7 @@ export class GraphBuilder {
 
     private createSupportedModules(
         domain: Domain,
-        direction: DirectionType,
+        direction: Direction,
         sourceModules: ModuleSet,
         targetModules: ModuleSet
     ): ModuleSet[] {

@@ -1,56 +1,50 @@
-import type { SemanticHierarchy } from "../legacy/hierarchy/semanticHierarchy";
-import type { SemanticSegmentDefinition } from "../legacy/semanticLayout";
+import type { LayoutBuilderOptions } from "../multipass/layoutBuilder";
+import type { PatternCollection } from "../multipass/patternDefinition";
 
-export const chordPatternLibrary: SemanticHierarchy = {
+export const rootInput = new Array(8).fill("root");
+
+export const formPatternCollection: PatternCollection = {
+    name: "form",
     patterns: [
         {
-            levels: [
-                ["genre1", "genre2"],
-                ["intro", "verse"],
-            ],
-            values: ["C", "Am", "F", "G"],
+            parentValues: ["root"],
+            values: ["intro", "verse", "chorus", "verse", "outro"],
         },
         {
-            levels: [
-                ["genre1", "genre2"],
-                ["intro", "verse"],
-            ],
-            values: ["F", "C", "Dm", "Am"],
-        },
-        {
-            levels: [
-                ["genre1", "genre2"],
-                ["outro", "verse"],
-            ],
-            values: ["C", "Em", "F", "Fm"],
-        },
-        {
-            levels: [
-                ["genre2", "genre3"],
-                ["verse"],
-            ],
-            values: ["C", "G", "Am", "F"],
-        },
-        {
-            levels: [
-                ["genre2", "genre3"],
-                ["chorus"],
-            ],
-            values: ["Am", "C", "Dm", "G"],
-        },
-        {
-            levels: [
-                ["genre2", "genre3"],
-                ["verse"],
-            ],
-            values: ["C", "Am", "F", "Fm"],
+            parentValues: ["root"],
+            values: ["intro", "verse", "chorus", "chorus", "outro"],
         },
     ],
 };
 
-export const chordPatternSegments: SemanticSegmentDefinition[] = [
-    { path: ["genre2", "verse"], length: 2 },
-    { path: ["genre3", "chorus"], length: 2 },
-    { path: ["genre1", "intro"], length: 2 },
-    { path: ["genre2", "outro"], length: 2 },
-];
+export const formOptions: LayoutBuilderOptions = {
+    resolution: 2,
+    overlap: 0,
+};
+
+export const chordPatternCollection: PatternCollection = {
+    name: "chords",
+    patterns: [
+        {
+            parentValues: ["intro"],
+            values: ["C", "Am", "F", "G"],
+        },
+        {
+            parentValues: ["verse"],
+            values: ["C", "G", "Am", "F", "Fm"],
+        },
+        {
+            parentValues: ["chorus"],
+            values: ["F", "G", "C", "Am", "Dm"],
+        },
+        {
+            parentValues: ["outro"],
+            values: ["F", "Fm", "G", "C"],
+        },
+    ],
+};
+
+export const chordOptions: LayoutBuilderOptions = {
+    resolution: 2,
+    overlap: 1,
+};

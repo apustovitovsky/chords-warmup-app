@@ -1,41 +1,27 @@
-import type { SemanticHierarchy } from "../legacy/hierarchy/semanticHierarchy";
-import type { SemanticSegmentDefinition } from "../legacy/semanticLayout";
+import type { LayoutBuilderOptions } from "../multipass/layoutBuilder";
+import type { PatternCollection } from "../multipass/patternDefinition";
 
-export const songFormLibrary: SemanticHierarchy = {
+export const songRootInput = new Array(8).fill("song");
+
+export const songFormPatternCollection: PatternCollection = {
+    name: "song-form",
     patterns: [
         {
-            levels: [
-                ["indie", "folk"],
-                ["form"],
-            ],
+            parentValues: ["song"],
             values: ["intro", "verse", "chorus", "verse", "outro"],
         },
         {
-            levels: [
-                ["indie", "folk"],
-                ["form"],
-            ],
+            parentValues: ["song"],
             values: ["verse", "chorus", "bridge", "chorus", "outro"],
         },
         {
-            levels: [
-                ["rock", "indie"],
-                ["form"],
-            ],
+            parentValues: ["song"],
             values: ["intro", "verse", "verse", "chorus", "outro"],
-        },
-        {
-            levels: [
-                ["rock", "indie"],
-                ["form"],
-            ],
-            values: ["verse", "prechorus", "chorus", "bridge", "chorus"],
         },
     ],
 };
 
-export const songFormSegments: SemanticSegmentDefinition[] = [
-    { path: ["indie", "form"], length: 3 },
-    { path: ["rock", "form"], length: 3 },
-    { path: ["folk", "form"], length: 2 },
-];
+export const songFormOptions: LayoutBuilderOptions = {
+    resolution: 1,
+    overlap: 0,
+};
