@@ -43,11 +43,10 @@ printSemanticHealth(
 );
 
 let step = 1;
-let candidate = queue.nextCandidate();
+let nodeIndex = queue.nextNodeIndex();
 
-while (candidate !== null) {
-    const moduleId = solver.pickModule(candidate);
-    const nodeIndex = candidate.nodeIndex;
+while (nodeIndex !== null) {
+    const moduleId = solver.pickModule(nodeIndex);
     const changedNodeIndices = propagator.collapse(nodeIndex, moduleId);
     const historyItem = history.peek();
 
@@ -61,7 +60,7 @@ while (candidate !== null) {
     printChangedDomains(changedNodeIndices);
 
     queue.updateMany(changedNodeIndices);
-    candidate = queue.nextCandidate();
+    nodeIndex = queue.nextNodeIndex();
     step++;
 }
 

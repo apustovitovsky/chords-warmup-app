@@ -7,7 +7,6 @@ interface CollapseQueueEntry {
     orderIndex: number;
     entropy: number;
     version: number;
-    moduleWeights: Map<number, number>;
 }
 
 export class CollapseQueue {
@@ -50,22 +49,17 @@ export class CollapseQueue {
             return;
         }
 
-        const moduleWeights = this.runtimeGraph.calculateModuleWeights(nodeIndex);
-        const entropy = this.calculateEntropy(node, moduleWeights);
+        const entropy = this.calculateEntropy(node);
 
         this.entropyQueue.push({
             nodeIndex,
             orderIndex: this.orderIndexByNodeIndex[nodeIndex],
             entropy,
             version,
-            moduleWeights,
         });
     }
 
-    nextCandidate(): {
-        nodeIndex: number,
-        moduleWeights: Map<number, number>,
-    } | null {
+    nextNodeIndex(): number | null {
         let entry = this.entropyQueue.pop();
 
         while (entry !== null) {
@@ -75,10 +69,7 @@ export class CollapseQueue {
                 entry.version === this.versions[entry.nodeIndex] &&
                 node.moduleCount > 1
             ) {
-                return {
-                    nodeIndex: entry.nodeIndex,
-                    moduleWeights: entry.moduleWeights,
-                };
+                return entry.nodeIndex;
             }
 
             entry = this.entropyQueue.pop();
@@ -87,14 +78,13 @@ export class CollapseQueue {
         return null;
     }
 
-    private calculateEntropy(
-        node: RuntimeNode,
-        moduleWeights: Map<number, number>
-    ): number {
+    private calculateEntropy(node: RuntimeNode): number {
         let sumWeight = 0;
         let sumWeightLogWeight = 0;
 
-        for (const weight of moduleWeights.values()) {
+        for (const moduleId of node.modules) {
+            const weight = node.moduleWeights[moduleId];
+
             if (weight <= 0) {
                 continue;
             }

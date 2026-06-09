@@ -3,7 +3,7 @@ import { RuntimeGraph } from "../runtime/runtimeGraph";
 import { RuntimeNode } from "../runtime/runtimeNode";
 import type { SemanticModuleIndex } from "./semanticModuleIndex";
 import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
-import { type EdgeTransitionData, RuntimeEdge } from "../runtime/runtimeEdge";
+import { RuntimeEdge } from "../runtime/runtimeEdge";
 
 interface RuntimeNodeDraft {
     modules: ModuleSet;
@@ -12,7 +12,7 @@ interface RuntimeNodeDraft {
 
 interface RuntimeEdgeDraft {
     targetNodeIndex: number;
-    transitions: EdgeTransitionData;
+    supportedModules: ModuleSet[];
 }
 
 export function createRuntimeGraph(
@@ -84,7 +84,7 @@ class RuntimeCompiler {
 
                 edgeDrafts.push({
                     targetNodeIndex,
-                    transitions: this.createEdgeTransitionData(
+                    supportedModules: this.createSupportedModules(
                         draft,
                         drafts[targetNodeIndex],
                         semanticModuleIndex
@@ -107,7 +107,7 @@ class RuntimeCompiler {
                     sourceNodeIndex,
                     edgeDraft.targetNodeIndex
                 ),
-                edgeDraft.transitions
+                edgeDraft.supportedModules
             ))
         );
     }
@@ -130,11 +130,11 @@ class RuntimeCompiler {
         return reverseEdgeIndex;
     }
 
-    private createEdgeTransitionData(
+    private createSupportedModules(
         draft: RuntimeNodeDraft,
         neighbor: RuntimeNodeDraft,
         semanticModuleIndex: SemanticModuleIndex
-    ): EdgeTransitionData {
+    ): ModuleSet[] {
         const modules = this.createEmptyModuleSets(draft.modules);
 
         for (const moduleId of draft.modules) {
@@ -153,9 +153,7 @@ class RuntimeCompiler {
             }
         }
 
-        return {
-            modules,
-        };
+        return modules;
     }
 
     private createEmptyModuleSets(source: ModuleSet): ModuleSet[] {
@@ -222,7 +220,7 @@ class RuntimeCompiler {
                     }
                 }
 
-                node.moduleHealth[edgeIndex][moduleId] = health;
+                node.setModuleHealth(edgeIndex, moduleId, health);
             }
         }
     }

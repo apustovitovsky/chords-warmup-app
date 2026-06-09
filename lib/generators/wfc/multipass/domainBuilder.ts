@@ -1,26 +1,25 @@
 import { ModuleSet } from "../runtime/moduleSet";
+import { GraphDecoder } from "./graphDecoder";
 import type { PatternCollection, PatternDefinition } from "./patternDefinition";
 
-export interface PatternModule<TValue = string> {
-    id: number;
-    value: TValue;
+export interface DomainBuild<TValue = string> {
+    domain: Domain;
+    domainIds: DomainIds<TValue>;
+    decoder: GraphDecoder<TValue>;
 }
 
-export class Domain<TValue = string> {
-    private readonly domainIdByValue = new Map<TValue, number>();
-
+export class Domain {
     constructor(
-        readonly domains: TValue[],
-        readonly modules: PatternModule<TValue>[],
         readonly modulesByDomainId: ModuleSet[],
-        readonly supportsByModuleId: ModuleSet[]
-    ) {
-        for (let domainId = 0; domainId < this.domains.length; domainId++) {
-            this.domainIdByValue.set(this.domains[domainId], domainId);
-        }
-    }
+        readonly supportsByModuleId: ModuleSet[],
+        readonly moduleCapacity: number
+    ) { }
+}
 
-    getDomainId(domain: TValue): number {
+export class DomainIds<TValue = string> {
+    constructor(private readonly domainIdByValue: Map<TValue, number>) { }
+
+    get(domain: TValue): number {
         const domainId = this.domainIdByValue.get(domain);
 
         if (domainId === undefined) {
@@ -32,25 +31,28 @@ export class Domain<TValue = string> {
 }
 
 export class DomainBuilder<TValue = string> {
-    build(collection: PatternCollection<TValue>): Domain<TValue> {
+    build(collection: PatternCollection<TValue>): DomainBuild<TValue> {
         const domains = this.createDomains(collection.patterns);
-        const modules = this.createModules(collection.patterns);
+        const moduleValues = this.createModuleValues(collection.patterns);
         const modulesByDomainId = this.createModulesByDomainId(
             collection.patterns,
             domains,
-            modules
+            moduleValues
         );
         const supportsByModuleId = this.createSupportsByModuleId(
             collection.patterns,
-            modules
+            moduleValues
         );
 
-        return new Domain(
-            domains,
-            modules,
-            modulesByDomainId,
-            supportsByModuleId
-        );
+        return {
+            domain: new Domain(
+                modulesByDomainId,
+                supportsByModuleId,
+                moduleValues.length
+            ),
+            domainIds: new DomainIds(this.createIndex(domains)),
+            decoder: new GraphDecoder(moduleValues),
+        };
     }
 
     private createDomains(
@@ -73,10 +75,10 @@ export class DomainBuilder<TValue = string> {
         return domains;
     }
 
-    private createModules(
+    private createModuleValues(
         patterns: PatternDefinition<TValue>[]
-    ): PatternModule<TValue>[] {
-        const modules: PatternModule<TValue>[] = [];
+    ): TValue[] {
+        const values: TValue[] = [];
         const seen = new Set<TValue>();
 
         for (const pattern of patterns) {
@@ -86,26 +88,23 @@ export class DomainBuilder<TValue = string> {
                 }
 
                 seen.add(value);
-                modules.push({
-                    id: modules.length,
-                    value,
-                });
+                values.push(value);
             }
         }
 
-        return modules;
+        return values;
     }
 
     private createModulesByDomainId(
         patterns: PatternDefinition<TValue>[],
         domains: TValue[],
-        modules: PatternModule<TValue>[]
+        moduleValues: TValue[]
     ): ModuleSet[] {
         const domainIdByValue = this.createIndex(domains);
-        const moduleIdByValue = this.createModuleIndex(modules);
+        const moduleIdByValue = this.createIndex(moduleValues);
         const result = Array.from(
             { length: domains.length },
-            () => new ModuleSet(modules.length)
+            () => new ModuleSet(moduleValues.length)
         );
 
         for (const pattern of patterns) {
@@ -129,12 +128,12 @@ export class DomainBuilder<TValue = string> {
 
     private createSupportsByModuleId(
         patterns: PatternDefinition<TValue>[],
-        modules: PatternModule<TValue>[]
+        moduleValues: TValue[]
     ): ModuleSet[] {
-        const moduleIdByValue = this.createModuleIndex(modules);
+        const moduleIdByValue = this.createIndex(moduleValues);
         const result = Array.from(
-            { length: modules.length },
-            () => new ModuleSet(modules.length)
+            { length: moduleValues.length },
+            () => new ModuleSet(moduleValues.length)
         );
 
         for (const pattern of patterns) {
@@ -167,18 +166,6 @@ export class DomainBuilder<TValue = string> {
         }
 
         return moduleId;
-    }
-
-    private createModuleIndex(
-        modules: PatternModule<TValue>[]
-    ): Map<TValue, number> {
-        const result = new Map<TValue, number>();
-
-        for (const module of modules) {
-            result.set(module.value, module.id);
-        }
-
-        return result;
     }
 
     private createIndex(values: TValue[]): Map<TValue, number> {

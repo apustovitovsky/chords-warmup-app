@@ -6,7 +6,7 @@ export class CollapseSolver {
     private readonly propagationSolver: PropagationSolver;
     private readonly collapseQueue: CollapseQueue;
 
-    constructor(runtimeGraph: RuntimeGraph) {
+    constructor(private readonly runtimeGraph: RuntimeGraph) {
         this.propagationSolver = new PropagationSolver(runtimeGraph);
         this.collapseQueue = new CollapseQueue(runtimeGraph);
     }
@@ -15,28 +15,28 @@ export class CollapseSolver {
         this.propagationSolver.enforceConsistency();
         this.collapseQueue.initialize();
 
-        let candidate = this.collapseQueue.nextCandidate();
+        let nodeIndex = this.collapseQueue.nextNodeIndex();
 
-        while (candidate !== null) {
-            const moduleId = this.pickModule(candidate);
+        while (nodeIndex !== null) {
+            const moduleId = this.pickModule(nodeIndex);
             const changedNodeIndices = this.propagationSolver.collapse(
-                candidate.nodeIndex,
+                nodeIndex,
                 moduleId
             );
 
             this.collapseQueue.updateMany(changedNodeIndices);
-            candidate = this.collapseQueue.nextCandidate();
+            nodeIndex = this.collapseQueue.nextNodeIndex();
         }
     }
 
-    pickModule(candidate: {
-        nodeIndex: number,
-        moduleWeights: Map<number, number>
-    }): number {
+    pickModule(nodeIndex: number): number {
+        const node = this.runtimeGraph.nodes[nodeIndex];
         let bestModuleId: number | null = null;
         let bestWeight = -1;
 
-        for (const [moduleId, weight] of candidate.moduleWeights) {
+        for (const moduleId of node.modules) {
+            const weight = node.moduleWeights[moduleId];
+
             if (
                 bestModuleId === null ||
                 weight > bestWeight ||
@@ -48,7 +48,7 @@ export class CollapseSolver {
         }
 
         if (bestModuleId === null) {
-            throw new Error(`Cannot pick module from empty node "${candidate.nodeIndex}".`);
+            throw new Error(`Cannot pick module from empty node "${nodeIndex}".`);
         }
 
         return bestModuleId;

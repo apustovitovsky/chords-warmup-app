@@ -113,7 +113,7 @@ function formatCompiledSupportTags(
     const support = new Set<string>();
 
     for (const edge of runtimeGraph.edges[nodeIndex]) {
-        for (const supportedModules of edge.transitions.modules) {
+        for (const supportedModules of edge.supportedModules) {
             for (const moduleId of supportedModules) {
                 support.add(formatModuleLabel(moduleIndex, moduleId));
             }

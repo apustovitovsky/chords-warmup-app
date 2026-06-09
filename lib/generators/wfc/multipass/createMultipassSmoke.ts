@@ -1,12 +1,11 @@
 import { CollapseSolver } from "../runtime/collapseSolver";
-import {
-    compilePatternPass,
-    PatternResolverOptions,
-    type CompiledPattern,
-} from "./patternResolver";
+import { DomainBuilder, type DomainBuild } from "./domainBuilder";
+import { GraphBuilder } from "./graphBuilder";
+import { LayoutBuilder, type LayoutBuilderOptions } from "./layoutBuilder";
 import type {
     PatternCollection
 } from "./patternDefinition";
+import type { RuntimeGraph } from "../runtime/runtimeGraph";
 
 const root = new Array(8).fill("root");
 
@@ -24,7 +23,7 @@ const formPass: PatternCollection = {
     ],
 };
 
-const formOptions: PatternResolverOptions = {
+const formOptions: LayoutBuilderOptions = {
     resolution: 1,
     overlap: 0,
 };
@@ -51,7 +50,7 @@ const chordPass: PatternCollection = {
     ],
 };
 
-const chordOptions: PatternResolverOptions = {
+const chordOptions: LayoutBuilderOptions = {
     resolution: 4,
     overlap: 1,
 };
@@ -60,59 +59,55 @@ console.log("\nmultipass smoke");
 printValues("root input", root);
 
 const form = runPass(formPass, root, formOptions);
-printCompiledPass("form graph", form.compiled);
+printGraph("form graph", form.domainBuild, form.graph);
 printValues("form result", form.collapsed);
 
 const chords = runPass(chordPass, form.collapsed, chordOptions);
-printCompiledPass("chord graph", chords.compiled);
+printGraph("chord graph", chords.domainBuild, chords.graph);
 printValues("chord result", chords.collapsed);
 
 function runPass(
     pass: PatternCollection,
     parent: string[],
-    options: PatternResolverOptions
+    options: LayoutBuilderOptions
 ): {
-    compiled: CompiledPattern;
+    domainBuild: DomainBuild;
+    graph: RuntimeGraph;
     collapsed: string[];
 } {
-    const compiled = compilePatternPass(pass, parent, options);
-    const solver = new CollapseSolver(compiled.runtimeGraph);
+    const domainBuild = new DomainBuilder().build(pass);
+    const parentDomainIds = parent.map((value) =>
+        domainBuild.domainIds.get(value)
+    );
+    const layout = new LayoutBuilder(parentDomainIds).build(options);
+    const graph = new GraphBuilder().build(layout, domainBuild.domain);
+    const solver = new CollapseSolver(graph);
 
     solver.solve();
 
     return {
-        compiled,
-        collapsed: getResolvedValues(compiled),
+        domainBuild,
+        graph,
+        collapsed: domainBuild.decoder.decode(graph),
     };
 }
 
-function getResolvedValues(compiled: CompiledPattern): string[] {
-    return compiled.runtimeGraph.nodes.map((node, nodeIndex) => {
-        const moduleId = node.resolvedModuleId;
-
-        if (moduleId === null) {
-            throw new Error(`Cannot decode unresolved node "${nodeIndex}".`);
-        }
-
-        return compiled.modules[moduleId].value;
-    });
-}
-
-function printCompiledPass(
+function printGraph(
     title: string,
-    compiled: CompiledPattern
+    domainBuild: DomainBuild,
+    graph: RuntimeGraph
 ): void {
     console.log(`\n${green(title)}`);
 
     for (
         let nodeIndex = 0;
-        nodeIndex < compiled.runtimeGraph.nodes.length;
+        nodeIndex < graph.nodes.length;
         nodeIndex++
     ) {
-        const node = compiled.runtimeGraph.nodes[nodeIndex];
+        const node = graph.nodes[nodeIndex];
 
         console.log(
-            `  ${dim(`${nodeIndex}.`)} ${formatModuleIds(compiled, node.modules.toIds())}`
+            `  ${dim(`${nodeIndex}.`)} ${formatModuleIds(domainBuild, node.modules.toIds())}`
         );
     }
 }
@@ -126,15 +121,13 @@ function printValues(title: string, values: string[]): void {
 }
 
 function formatModuleIds(
-    compiled: CompiledPattern,
+    domainBuild: DomainBuild,
     moduleIds: number[]
 ): string {
     return moduleIds
-        .map((moduleId) => {
-            const module = compiled.modules[moduleId];
-
-            return `${gold(module.value)}${dim(`:${module.id}`)}`;
-        })
+        .map((moduleId) =>
+            `${gold(domainBuild.decoder.formatModule(moduleId))}${dim(`:${moduleId}`)}`
+        )
         .join(", ") || red("-");
 }
 

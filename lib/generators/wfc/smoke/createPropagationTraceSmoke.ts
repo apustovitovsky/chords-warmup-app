@@ -170,6 +170,7 @@ interface RuntimeNodeSnapshot {
     moduleIds: number[];
     collapsedModuleId: number | null;
     moduleHealth: number[][];
+    moduleWeights: number[];
 }
 
 function createRuntimeSnapshot(nodes: RuntimeNode[]): RuntimeNodeSnapshot[] {
@@ -177,6 +178,7 @@ function createRuntimeSnapshot(nodes: RuntimeNode[]): RuntimeNodeSnapshot[] {
         moduleIds: node.modules.toIds(),
         collapsedModuleId: node.collapsedModuleId,
         moduleHealth: node.moduleHealth.map((health) => [...health]),
+        moduleWeights: [...node.moduleWeights],
     }));
 }
 
@@ -194,6 +196,10 @@ function assertRuntimeSnapshotEqual(
 
         if (expectedNode.collapsedModuleId !== actualNode.collapsedModuleId) {
             throw new Error(`Runtime collapse state was not restored after rollback for node "${nodeIndex}".`);
+        }
+
+        if (JSON.stringify(expectedNode.moduleWeights) !== JSON.stringify(actualNode.moduleWeights)) {
+            throw new Error(`Runtime module weights were not restored after rollback for node "${nodeIndex}".`);
         }
 
         for (let neighborIndex = 0; neighborIndex < expectedNode.moduleHealth.length; neighborIndex++) {

@@ -118,7 +118,10 @@ export class RuntimeHistory {
             const supportedModules = edge.getSupportedModules(moduleId);
 
             for (const targetModuleId of supportedModules) {
-                targetNode.moduleHealth[edge.reverseEdgeIndex][targetModuleId]++;
+                targetNode.incrementModuleHealth(
+                    edge.reverseEdgeIndex,
+                    targetModuleId
+                );
             }
         }
     }

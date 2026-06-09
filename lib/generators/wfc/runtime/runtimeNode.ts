@@ -2,6 +2,7 @@ import { ModuleSet } from "./moduleSet";
 
 export class RuntimeNode {
     readonly moduleHealth: number[][];
+    readonly moduleWeights: number[];
     collapsedModuleId: number | null = null;
 
     constructor(
@@ -12,6 +13,36 @@ export class RuntimeNode {
             { length: neighborCount },
             () => new Array(modules.capacity).fill(0)
         );
+        this.moduleWeights = new Array(modules.capacity).fill(0);
+    }
+
+    setModuleHealth(edgeIndex: number, moduleId: number, health: number): void {
+        this.moduleHealth[edgeIndex][moduleId] = health;
+        this.recalculateModuleWeight(moduleId);
+    }
+
+    incrementModuleHealth(edgeIndex: number, moduleId: number): number {
+        const health = ++this.moduleHealth[edgeIndex][moduleId];
+        this.moduleWeights[moduleId]++;
+
+        return health;
+    }
+
+    decrementModuleHealth(edgeIndex: number, moduleId: number): number {
+        const health = --this.moduleHealth[edgeIndex][moduleId];
+        this.moduleWeights[moduleId]--;
+
+        return health;
+    }
+
+    private recalculateModuleWeight(moduleId: number): void {
+        let weight = 0;
+
+        for (const health of this.moduleHealth) {
+            weight += health[moduleId];
+        }
+
+        this.moduleWeights[moduleId] = weight;
     }
 
     removeModules(modulesToRemove: ModuleSet): ModuleSet {

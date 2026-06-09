@@ -158,23 +158,25 @@ export class PropagationSolver {
     ): void {
         const edge = this.runtimeGraph.edges[nodeIndex][edgeIndex];
         const targetNode = this.runtimeGraph.nodes[edge.targetNodeIndex];
-        const targetHealth = targetNode.moduleHealth[edge.reverseEdgeIndex];
         const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
         for (const removedModuleId of removedModules) {
             const supportedModules = edge.getSupportedModules(removedModuleId);
 
             for (const targetModuleId of supportedModules) {
-                targetHealth[targetModuleId]--;
+                const targetHealth = targetNode.decrementModuleHealth(
+                    edge.reverseEdgeIndex,
+                    targetModuleId
+                );
 
                 if (
-                    targetHealth[targetModuleId] === 0 &&
+                    targetHealth === 0 &&
                     targetNode.modules.contains(targetModuleId)
                 ) {
                     modulesToRemove.add(targetModuleId);
                 }
 
-                if (targetHealth[targetModuleId] < 0) {
+                if (targetHealth < 0) {
                     throw new Error(
                         `Module health became negative for "${targetModuleId}".`
                     );
