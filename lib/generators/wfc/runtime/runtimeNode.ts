@@ -1,48 +1,45 @@
 import { ModuleSet } from "./moduleSet";
+import { Direction } from "./direction";
+
+export interface RuntimeNeighbor {
+    nodeIndex: number;
+    supportedModules: ModuleSet[];
+}
 
 export class RuntimeNode {
     readonly moduleHealth: number[][];
-    readonly moduleWeights: number[];
     collapsedModuleId: number | null = null;
 
     constructor(
         readonly modules: ModuleSet,
-        neighborCount: number
+        readonly neighbors: Array<RuntimeNeighbor | null>
     ) {
         this.moduleHealth = Array.from(
-            { length: neighborCount },
+            { length: Direction.count },
             () => new Array(modules.capacity).fill(0)
         );
-        this.moduleWeights = new Array(modules.capacity).fill(0);
     }
 
     setModuleHealth(edgeIndex: number, moduleId: number, health: number): void {
         this.moduleHealth[edgeIndex][moduleId] = health;
-        this.recalculateModuleWeight(moduleId);
     }
 
     incrementModuleHealth(edgeIndex: number, moduleId: number): number {
-        const health = ++this.moduleHealth[edgeIndex][moduleId];
-        this.moduleWeights[moduleId]++;
-
-        return health;
+        return ++this.moduleHealth[edgeIndex][moduleId];
     }
 
     decrementModuleHealth(edgeIndex: number, moduleId: number): number {
-        const health = --this.moduleHealth[edgeIndex][moduleId];
-        this.moduleWeights[moduleId]--;
-
-        return health;
+        return --this.moduleHealth[edgeIndex][moduleId];
     }
 
-    private recalculateModuleWeight(moduleId: number): void {
+    getModuleWeight(moduleId: number): number {
         let weight = 0;
 
         for (const health of this.moduleHealth) {
             weight += health[moduleId];
         }
 
-        this.moduleWeights[moduleId] = weight;
+        return weight;
     }
 
     removeModules(modulesToRemove: ModuleSet): ModuleSet {

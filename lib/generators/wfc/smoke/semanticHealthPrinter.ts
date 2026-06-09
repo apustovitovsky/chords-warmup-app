@@ -1,9 +1,9 @@
 import type { Graph } from "../legacy/hierarchy/graph";
 import type { SemanticLayout } from "../legacy/semanticLayout";
 import type { SemanticModuleIndex } from "../legacy/semanticModuleIndex";
-import type { RuntimeEdge } from "../runtime/runtimeEdge";
 import type { RuntimeGraph } from "../runtime/runtimeGraph";
 import type { ModuleSet } from "../runtime/moduleSet";
+import { Direction, type Direction as DirectionType } from "../runtime/direction";
 
 export function printSemanticHealth(
     title: string,
@@ -32,14 +32,16 @@ export function printSemanticHealth(
         for (const moduleId of node.modules) {
             const backSupport = getSupportedNeighborTags(
                 moduleIndex,
-                runtimeGraph.edges[nodeIndex],
-                nodeIndex - 1,
+                runtimeGraph,
+                nodeIndex,
+                Direction.Back,
                 moduleId,
             );
             const forwardSupport = getSupportedNeighborTags(
                 moduleIndex,
-                runtimeGraph.edges[nodeIndex],
-                nodeIndex + 1,
+                runtimeGraph,
+                nodeIndex,
+                Direction.Forward,
                 moduleId,
             );
 
@@ -87,21 +89,20 @@ export function formatGraphPath(graph: Graph<string>, nodeId: number): string {
 
 function getSupportedNeighborTags(
     moduleIndex: SemanticModuleIndex,
-    edges: RuntimeEdge[],
-    targetNodeIndex: number,
+    runtimeGraph: RuntimeGraph,
+    nodeIndex: number,
+    direction: DirectionType,
     moduleId: number,
 ): string {
-    const edge = edges.find((edge) =>
-        edge.targetNodeIndex === targetNodeIndex
-    );
+    const neighbor = runtimeGraph.nodes[nodeIndex].neighbors[direction];
 
-    if (!edge) {
+    if (!neighbor) {
         return dim("x");
     }
 
     return formatModuleTags(
         moduleIndex,
-        edge.getSupportedModules(moduleId)
+        neighbor.supportedModules[moduleId]
     );
 }
 
@@ -112,8 +113,12 @@ function formatCompiledSupportTags(
 ): string {
     const support = new Set<string>();
 
-    for (const edge of runtimeGraph.edges[nodeIndex]) {
-        for (const supportedModules of edge.supportedModules) {
+    for (const neighbor of runtimeGraph.nodes[nodeIndex].neighbors) {
+        if (!neighbor) {
+            continue;
+        }
+
+        for (const supportedModules of neighbor.supportedModules) {
             for (const moduleId of supportedModules) {
                 support.add(formatModuleLabel(moduleIndex, moduleId));
             }

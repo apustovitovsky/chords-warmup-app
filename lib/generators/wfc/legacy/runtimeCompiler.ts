@@ -1,18 +1,13 @@
 import { ModuleSet } from "../runtime/moduleSet";
 import { RuntimeGraph } from "../runtime/runtimeGraph";
-import { RuntimeNode } from "../runtime/runtimeNode";
+import { RuntimeNode, type RuntimeNeighbor } from "../runtime/runtimeNode";
+import { Direction, type Direction as DirectionType } from "../runtime/direction";
 import type { SemanticModuleIndex } from "./semanticModuleIndex";
 import type { SemanticLayout, SemanticLayoutSlot } from "./semanticLayout";
-import { RuntimeEdge } from "../runtime/runtimeEdge";
 
 interface RuntimeNodeDraft {
     modules: ModuleSet;
     adjacentNodeIndices: Array<number | null>;
-}
-
-interface RuntimeEdgeDraft {
-    targetNodeIndex: number;
-    supportedModules: ModuleSet[];
 }
 
 export function createRuntimeGraph(
@@ -30,15 +25,12 @@ class RuntimeCompiler {
         semanticModuleIndex: SemanticModuleIndex
     ): RuntimeGraph {
         const drafts = this.createDrafts(layout, semanticModuleIndex);
-        const edgeDrafts = this.createEdgeDrafts(drafts, semanticModuleIndex);
-        const edges = this.createEdges(edgeDrafts);
         const nodes = drafts.map((draft, nodeIndex) => new RuntimeNode(
             draft.modules,
-            edges[nodeIndex].length
+            this.createNeighbors(drafts, nodeIndex, semanticModuleIndex)
         ));
         const runtimeGraph = new RuntimeGraph(
             nodes,
-            edges,
             nodes.map((_, nodeIndex) => nodeIndex),
             semanticModuleIndex.modules.length
         );
@@ -69,70 +61,54 @@ class RuntimeCompiler {
         return drafts;
     }
 
-    private createEdgeDrafts(
+    private createNeighbors(
         drafts: RuntimeNodeDraft[],
+        nodeIndex: number,
         semanticModuleIndex: SemanticModuleIndex
-    ): RuntimeEdgeDraft[][] {
-        return drafts.map((draft) => {
-            const edgeDrafts: RuntimeEdgeDraft[] = [];
-
-            for (const targetNodeIndex of draft.adjacentNodeIndices) {
-
-                if (targetNodeIndex === null) {
-                    continue;
-                }
-
-                edgeDrafts.push({
-                    targetNodeIndex,
-                    supportedModules: this.createSupportedModules(
-                        draft,
-                        drafts[targetNodeIndex],
-                        semanticModuleIndex
-                    ),
-                });
-            }
-
-            return edgeDrafts;
-        });
+    ): Array<RuntimeNeighbor | null> {
+        return [
+            this.createNeighbor(
+                drafts,
+                nodeIndex,
+                Direction.Back,
+                semanticModuleIndex
+            ),
+            this.createNeighbor(
+                drafts,
+                nodeIndex,
+                Direction.Forward,
+                semanticModuleIndex
+            ),
+        ];
     }
 
-    private createEdges(
-        edgeDrafts: RuntimeEdgeDraft[][]
-    ): RuntimeEdge[][] {
-        return edgeDrafts.map((nodeEdgeDrafts, sourceNodeIndex) =>
-            nodeEdgeDrafts.map((edgeDraft) => new RuntimeEdge(
-                edgeDraft.targetNodeIndex,
-                this.getReverseEdgeIndex(
-                    edgeDrafts,
-                    sourceNodeIndex,
-                    edgeDraft.targetNodeIndex
-                ),
-                edgeDraft.supportedModules
-            ))
-        );
-    }
+    private createNeighbor(
+        drafts: RuntimeNodeDraft[],
+        nodeIndex: number,
+        direction: DirectionType,
+        semanticModuleIndex: SemanticModuleIndex
+    ): RuntimeNeighbor | null {
+        const targetNodeIndex = drafts[nodeIndex].adjacentNodeIndices[direction];
 
-    private getReverseEdgeIndex(
-        edgeDrafts: RuntimeEdgeDraft[][],
-        sourceNodeIndex: number,
-        targetNodeIndex: number
-    ): number {
-        const reverseEdgeIndex = edgeDrafts[targetNodeIndex].findIndex(
-            (edgeDraft) => edgeDraft.targetNodeIndex === sourceNodeIndex
-        );
-
-        if (reverseEdgeIndex < 0) {
-            throw new Error(
-                `Runtime edge "${sourceNodeIndex}" -> "${targetNodeIndex}" has no reverse edge.`
-            );
+        if (targetNodeIndex === null) {
+            return null;
         }
 
-        return reverseEdgeIndex;
+        return {
+            nodeIndex: targetNodeIndex,
+            supportedModules: this.createSupportedModules(
+                drafts[nodeIndex],
+                drafts[targetNodeIndex],
+                direction,
+                semanticModuleIndex
+            ),
+        };
     }
 
     private createSupportedModules(
         draft: RuntimeNodeDraft,
         neighbor: RuntimeNodeDraft,
+        direction: DirectionType,
         semanticModuleIndex: SemanticModuleIndex
     ): ModuleSet[] {
         const modules = this.createEmptyModuleSets(draft.modules);
@@ -144,7 +120,8 @@ class RuntimeCompiler {
                 const weight = this.getTransitionWeight(
                     semanticModuleIndex,
                     moduleId,
-                    neighborModuleId
+                    neighborModuleId,
+                    direction
                 );
 
                 if (weight > 0) {
@@ -171,12 +148,18 @@ class RuntimeCompiler {
     private getTransitionWeight(
         semanticModuleIndex: SemanticModuleIndex,
         moduleId: number,
-        neighborModuleId: number
+        neighborModuleId: number,
+        direction: DirectionType
     ): number {
-        return semanticModuleIndex.getTransitionWeight(
-            moduleId,
-            neighborModuleId
-        );
+        return direction === Direction.Forward
+            ? semanticModuleIndex.getTransitionWeight(
+                moduleId,
+                neighborModuleId
+            )
+            : semanticModuleIndex.getTransitionWeight(
+                neighborModuleId,
+                moduleId
+            );
     }
 
     private getAdjacentNodeIndices(
@@ -200,27 +183,30 @@ class RuntimeCompiler {
         nodeIndex: number
     ): void {
         const node = runtimeGraph.nodes[nodeIndex];
-        const edges = runtimeGraph.edges[nodeIndex];
 
-        for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
-            const edge = edges[edgeIndex];
-            const targetNode = runtimeGraph.nodes[edge.targetNodeIndex];
-            const reverseEdge =
-                runtimeGraph.edges[edge.targetNodeIndex][edge.reverseEdgeIndex];
+        for (
+            let direction = 0;
+            direction < Direction.count;
+            direction++
+        ) {
+            const neighbor = node.neighbors[direction];
+
+            if (!neighbor) {
+                continue;
+            }
+
+            const targetNode = runtimeGraph.nodes[neighbor.nodeIndex];
 
             for (const moduleId of node.modules) {
                 let health = 0;
 
                 for (const targetModuleId of targetNode.modules) {
-                    const targetSupports =
-                        reverseEdge.getSupportedModules(targetModuleId);
-
-                    if (targetSupports.contains(moduleId)) {
+                    if (neighbor.supportedModules[moduleId].contains(targetModuleId)) {
                         health++;
                     }
                 }
 
-                node.setModuleHealth(edgeIndex, moduleId, health);
+                node.setModuleHealth(direction, moduleId, health);
             }
         }
     }

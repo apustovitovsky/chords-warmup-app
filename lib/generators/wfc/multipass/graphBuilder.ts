@@ -1,22 +1,19 @@
 import { ModuleSet } from "../runtime/moduleSet";
-import { RuntimeEdge } from "../runtime/runtimeEdge";
+import { Direction, type Direction as DirectionType } from "../runtime/direction";
 import { RuntimeGraph } from "../runtime/runtimeGraph";
-import { RuntimeNode } from "../runtime/runtimeNode";
+import { RuntimeNode, type RuntimeNeighbor } from "../runtime/runtimeNode";
 import type { Domain } from "./domainBuilder";
 import type { Layout } from "./layoutBuilder";
 
 export class GraphBuilder {
     build(layout: Layout, domain: Domain): RuntimeGraph {
         const nodeModules = this.createNodeModules(domain, layout);
-        const adjacency = this.createAdjacency(nodeModules.length);
-        const edges = this.createEdges(domain, nodeModules, adjacency);
         const nodes = nodeModules.map((modules, nodeIndex) => new RuntimeNode(
             modules,
-            edges[nodeIndex].length
+            this.createNeighbors(domain, nodeModules, nodeIndex)
         ));
         const graph = new RuntimeGraph(
             nodes,
-            edges,
             nodes.map((_, nodeIndex) => nodeIndex),
             domain.moduleCapacity
         );
@@ -48,62 +45,48 @@ export class GraphBuilder {
         );
     }
 
-    private createAdjacency(nodeCount: number): number[][] {
-        return Array.from({ length: nodeCount }, (_, nodeIndex) => {
-            const adjacentNodeIndices: number[] = [];
-
-            if (nodeIndex > 0) {
-                adjacentNodeIndices.push(nodeIndex - 1);
-            }
-
-            if (nodeIndex < nodeCount - 1) {
-                adjacentNodeIndices.push(nodeIndex + 1);
-            }
-
-            return adjacentNodeIndices;
-        });
-    }
-
-    private createEdges(
+    private createNeighbors(
         domain: Domain,
         nodeModules: ModuleSet[],
-        adjacency: number[][]
-    ): RuntimeEdge[][] {
-        return adjacency.map((targetNodeIndices, sourceNodeIndex) =>
-            targetNodeIndices.map((targetNodeIndex) => new RuntimeEdge(
-                targetNodeIndex,
-                this.getReverseEdgeIndex(
-                    adjacency,
-                    sourceNodeIndex,
-                    targetNodeIndex
-                ),
-                this.createSupportedModules(
-                    domain,
-                    nodeModules[sourceNodeIndex],
-                    nodeModules[targetNodeIndex]
-                )
-            ))
-        );
+        nodeIndex: number
+    ): Array<RuntimeNeighbor | null> {
+        return [
+            this.createNeighbor(domain, nodeModules, nodeIndex, Direction.Back),
+            this.createNeighbor(domain, nodeModules, nodeIndex, Direction.Forward),
+        ];
     }
 
-    private getReverseEdgeIndex(
-        adjacency: number[][],
-        sourceNodeIndex: number,
-        targetNodeIndex: number
-    ): number {
-        const reverseEdgeIndex = adjacency[targetNodeIndex].indexOf(sourceNodeIndex);
+    private createNeighbor(
+        domain: Domain,
+        nodeModules: ModuleSet[],
+        nodeIndex: number,
+        direction: DirectionType
+    ): RuntimeNeighbor | null {
+        const targetNodeIndex = direction === Direction.Back
+            ? nodeIndex - 1
+            : nodeIndex + 1;
 
-        if (reverseEdgeIndex < 0) {
-            throw new Error(
-                `Runtime edge "${sourceNodeIndex}" -> "${targetNodeIndex}" has no reverse edge.`
-            );
+        if (
+            targetNodeIndex < 0 ||
+            targetNodeIndex >= nodeModules.length
+        ) {
+            return null;
         }
 
-        return reverseEdgeIndex;
+        return {
+            nodeIndex: targetNodeIndex,
+            supportedModules: this.createSupportedModules(
+                domain,
+                direction,
+                nodeModules[nodeIndex],
+                nodeModules[targetNodeIndex]
+            ),
+        };
     }
 
     private createSupportedModules(
         domain: Domain,
+        direction: DirectionType,
         sourceModules: ModuleSet,
         targetModules: ModuleSet
     ): ModuleSet[] {
@@ -111,7 +94,7 @@ export class GraphBuilder {
 
         for (const moduleId of sourceModules) {
             const supported = modules[moduleId];
-            supported.addSet(domain.supportsByModuleId[moduleId]);
+            supported.addSet(domain.supportsByDirection[direction][moduleId]);
             supported.enforce(targetModules);
         }
 
@@ -131,24 +114,30 @@ export class GraphBuilder {
     private initializeModuleHealth(graph: RuntimeGraph): void {
         for (let nodeIndex = 0; nodeIndex < graph.nodes.length; nodeIndex++) {
             const node = graph.nodes[nodeIndex];
-            const edges = graph.edges[nodeIndex];
 
-            for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
-                const edge = edges[edgeIndex];
-                const targetNode = graph.nodes[edge.targetNodeIndex];
-                const reverseEdge =
-                    graph.edges[edge.targetNodeIndex][edge.reverseEdgeIndex];
+            for (
+                let direction = 0;
+                direction < Direction.count;
+                direction++
+            ) {
+                const neighbor = node.neighbors[direction];
+
+                if (!neighbor) {
+                    continue;
+                }
+
+                const targetNode = graph.nodes[neighbor.nodeIndex];
 
                 for (const moduleId of node.modules) {
                     let health = 0;
 
                     for (const targetModuleId of targetNode.modules) {
-                        if (reverseEdge.getSupportedModules(targetModuleId).contains(moduleId)) {
+                        if (neighbor.supportedModules[moduleId].contains(targetModuleId)) {
                             health++;
                         }
                     }
 
-                    node.setModuleHealth(edgeIndex, moduleId, health);
+                    node.setModuleHealth(direction, moduleId, health);
                 }
             }
         }

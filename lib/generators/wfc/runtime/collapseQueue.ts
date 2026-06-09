@@ -83,7 +83,7 @@ export class CollapseQueue {
         let sumWeightLogWeight = 0;
 
         for (const moduleId of node.modules) {
-            const weight = node.moduleWeights[moduleId];
+            const weight = node.getModuleWeight(moduleId);
 
             if (weight <= 0) {
                 continue;

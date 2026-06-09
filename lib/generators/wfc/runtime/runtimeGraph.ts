@@ -1,10 +1,8 @@
-import type { RuntimeEdge } from "./runtimeEdge";
 import type { RuntimeNode } from "./runtimeNode";
 
 export class RuntimeGraph {
     constructor(
         readonly nodes: RuntimeNode[],
-        readonly edges: RuntimeEdge[][],
         readonly order: number[],
         readonly moduleCapacity: number
     ) { }
@@ -15,8 +13,10 @@ export class RuntimeGraph {
         for (const nodeIndex of nodeIndices) {
             result.add(nodeIndex);
 
-            for (const edge of this.edges[nodeIndex]) {
-                result.add(edge.targetNodeIndex);
+            for (const neighbor of this.nodes[nodeIndex].neighbors) {
+                if (neighbor) {
+                    result.add(neighbor.nodeIndex);
+                }
             }
         }
 

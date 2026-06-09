@@ -1,4 +1,5 @@
 import { ModuleSet } from "../runtime/moduleSet";
+import { Direction } from "../runtime/direction";
 import { GraphDecoder } from "./graphDecoder";
 import type { PatternCollection, PatternDefinition } from "./patternDefinition";
 
@@ -11,7 +12,7 @@ export interface DomainBuild<TValue = string> {
 export class Domain {
     constructor(
         readonly modulesByDomainId: ModuleSet[],
-        readonly supportsByModuleId: ModuleSet[],
+        readonly supportsByDirection: ModuleSet[][],
         readonly moduleCapacity: number
     ) { }
 }
@@ -39,7 +40,7 @@ export class DomainBuilder<TValue = string> {
             domains,
             moduleValues
         );
-        const supportsByModuleId = this.createSupportsByModuleId(
+        const supportsByDirection = this.createSupportsByDirection(
             collection.patterns,
             moduleValues
         );
@@ -47,7 +48,7 @@ export class DomainBuilder<TValue = string> {
         return {
             domain: new Domain(
                 modulesByDomainId,
-                supportsByModuleId,
+                supportsByDirection,
                 moduleValues.length
             ),
             domainIds: new DomainIds(this.createIndex(domains)),
@@ -126,14 +127,17 @@ export class DomainBuilder<TValue = string> {
         return result;
     }
 
-    private createSupportsByModuleId(
+    private createSupportsByDirection(
         patterns: PatternDefinition<TValue>[],
         moduleValues: TValue[]
-    ): ModuleSet[] {
+    ): ModuleSet[][] {
         const moduleIdByValue = this.createIndex(moduleValues);
         const result = Array.from(
-            { length: moduleValues.length },
-            () => new ModuleSet(moduleValues.length)
+            { length: Direction.count },
+            () => Array.from(
+                { length: moduleValues.length },
+                () => new ModuleSet(moduleValues.length)
+            )
         );
 
         for (const pattern of patterns) {
@@ -147,8 +151,8 @@ export class DomainBuilder<TValue = string> {
                     pattern.values[index + 1]
                 );
 
-                result[fromModuleId].add(toModuleId);
-                result[toModuleId].add(fromModuleId);
+                result[Direction.Forward][fromModuleId].add(toModuleId);
+                result[Direction.Back][toModuleId].add(fromModuleId);
             }
         }
 

@@ -1,5 +1,6 @@
 import { ModuleSet } from "./moduleSet";
 import { RemovalQueue } from "./removalQueue";
+import { Direction, type Direction as DirectionType } from "./direction";
 import type { RuntimeHistory } from "./runtimeHistory";
 import type { RuntimeGraph } from "./runtimeGraph";
 import type { RuntimeNode } from "./runtimeNode";
@@ -90,8 +91,16 @@ export class PropagationSolver {
         const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
         for (const moduleId of node.modules) {
-            for (const health of node.moduleHealth) {
-                if (health[moduleId] <= 0) {
+            for (
+                let direction = 0;
+                direction < Direction.count;
+                direction++
+            ) {
+                if (!node.neighbors[direction]) {
+                    continue;
+                }
+
+                if (node.moduleHealth[direction][moduleId] <= 0) {
                     modulesToRemove.add(moduleId);
                     break;
                 }
@@ -140,13 +149,17 @@ export class PropagationSolver {
         nodeIndex: number,
         removedModules: ModuleSet
     ): void {
-        const edges = this.runtimeGraph.edges[nodeIndex];
+        const node = this.runtimeGraph.nodes[nodeIndex];
 
-        for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+        for (
+            let direction = 0;
+            direction < Direction.count;
+            direction++
+        ) {
             this.propagateRemovedModulesToNeighbor(
                 nodeIndex,
                 removedModules,
-                edgeIndex
+                direction as DirectionType
             );
         }
     }
@@ -154,18 +167,24 @@ export class PropagationSolver {
     private propagateRemovedModulesToNeighbor(
         nodeIndex: number,
         removedModules: ModuleSet,
-        edgeIndex: number
+        direction: DirectionType
     ): void {
-        const edge = this.runtimeGraph.edges[nodeIndex][edgeIndex];
-        const targetNode = this.runtimeGraph.nodes[edge.targetNodeIndex];
+        const node = this.runtimeGraph.nodes[nodeIndex];
+        const neighbor = node.neighbors[direction];
+
+        if (!neighbor) {
+            return;
+        }
+
+        const targetNode = this.runtimeGraph.nodes[neighbor.nodeIndex];
         const modulesToRemove = new ModuleSet(this.moduleCapacity);
 
         for (const removedModuleId of removedModules) {
-            const supportedModules = edge.getSupportedModules(removedModuleId);
+            const supportedModules = neighbor.supportedModules[removedModuleId];
 
             for (const targetModuleId of supportedModules) {
                 const targetHealth = targetNode.decrementModuleHealth(
-                    edge.reverseEdgeIndex,
+                    Direction.opposite(direction),
                     targetModuleId
                 );
 
@@ -184,6 +203,6 @@ export class PropagationSolver {
             }
         }
 
-        this.queue.enqueue(edge.targetNodeIndex, modulesToRemove);
+        this.queue.enqueue(neighbor.nodeIndex, modulesToRemove);
     }
 }

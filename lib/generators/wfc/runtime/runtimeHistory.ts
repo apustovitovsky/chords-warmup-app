@@ -1,5 +1,6 @@
 import { ModuleSet } from "./moduleSet";
 import { RingBuffer } from "./helpers/ringBuffer";
+import { Direction, type Direction as DirectionType } from "./direction";
 import type { RuntimeGraph } from "./runtimeGraph";
 
 export const defaultRuntimeHistoryCapacity = 3000;
@@ -110,16 +111,25 @@ export class RuntimeHistory {
         nodeIndex: number,
         moduleId: number
     ): void {
-        const edges = runtimeGraph.edges[nodeIndex];
+        const node = runtimeGraph.nodes[nodeIndex];
 
-        for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
-            const edge = edges[edgeIndex];
-            const targetNode = runtimeGraph.nodes[edge.targetNodeIndex];
-            const supportedModules = edge.getSupportedModules(moduleId);
+        for (
+            let direction = 0;
+            direction < Direction.count;
+            direction++
+        ) {
+            const neighbor = node.neighbors[direction];
+
+            if (!neighbor) {
+                continue;
+            }
+
+            const targetNode = runtimeGraph.nodes[neighbor.nodeIndex];
+            const supportedModules = neighbor.supportedModules[moduleId];
 
             for (const targetModuleId of supportedModules) {
                 targetNode.incrementModuleHealth(
-                    edge.reverseEdgeIndex,
+                    Direction.opposite(direction as DirectionType),
                     targetModuleId
                 );
             }

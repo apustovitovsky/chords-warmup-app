@@ -1,10 +1,10 @@
 import { CollapseSolver } from "../runtime/collapseSolver";
-import { DomainBuilder, type DomainBuild } from "./domainBuilder";
-import { GraphBuilder } from "./graphBuilder";
-import { LayoutBuilder, type LayoutBuilderOptions } from "./layoutBuilder";
+import { DomainBuilder, type DomainBuild } from "../multipass/domainBuilder";
+import { GraphBuilder } from "../multipass/graphBuilder";
+import { LayoutBuilder, type LayoutBuilderOptions } from "../multipass/layoutBuilder";
 import type {
     PatternCollection
-} from "./patternDefinition";
+} from "../multipass/patternDefinition";
 import type { RuntimeGraph } from "../runtime/runtimeGraph";
 
 const root = new Array(8).fill("root");

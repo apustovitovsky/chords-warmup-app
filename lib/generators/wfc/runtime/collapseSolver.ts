@@ -35,7 +35,7 @@ export class CollapseSolver {
         let bestWeight = -1;
 
         for (const moduleId of node.modules) {
-            const weight = node.moduleWeights[moduleId];
+            const weight = node.getModuleWeight(moduleId);
 
             if (
                 bestModuleId === null ||

@@ -1,4 +1,4 @@
-import { LayoutBuilder, type Layout, type LayoutBuilderOptions } from "./layoutBuilder";
+import { LayoutBuilder, type Layout, type LayoutBuilderOptions } from "../multipass/layoutBuilder";
 
 const domains = ["intro", "verse", "chorus", "outro"];
 const domainIds = [0, 1, 2, 2, 1, 3];
