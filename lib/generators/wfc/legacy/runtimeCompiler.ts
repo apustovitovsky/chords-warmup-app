@@ -136,11 +136,9 @@ class RuntimeCompiler {
         semanticModuleIndex: SemanticModuleIndex
     ): EdgeTransitionData {
         const modules = this.createEmptyModuleSets(draft.modules);
-        const weights = this.createEmptyTransitionWeights(draft.modules);
 
         for (const moduleId of draft.modules) {
             const supported = modules[moduleId];
-            const moduleWeights = weights[moduleId];
 
             for (const neighborModuleId of neighbor.modules) {
                 const weight = this.getTransitionWeight(
@@ -151,14 +149,12 @@ class RuntimeCompiler {
 
                 if (weight > 0) {
                     supported.add(neighborModuleId);
-                    moduleWeights[neighborModuleId] = weight;
                 }
             }
         }
 
         return {
             modules,
-            weights,
         };
     }
 
@@ -169,16 +165,6 @@ class RuntimeCompiler {
             const set = source.clone();
             set.clear();
             result[moduleId] = set;
-        }
-
-        return result;
-    }
-
-    private createEmptyTransitionWeights(source: ModuleSet): number[][] {
-        const result: number[][] = [];
-
-        for (let moduleId = 0; moduleId < source.capacity; moduleId++) {
-            result[moduleId] = new Array(source.capacity).fill(0);
         }
 
         return result;

@@ -2,7 +2,6 @@ import type { ModuleSet } from "./moduleSet";
 
 export interface EdgeTransitionData {
     modules: ModuleSet[];
-    weights: number[][];
 }
 
 export class RuntimeEdge {
@@ -14,9 +13,5 @@ export class RuntimeEdge {
 
     getSupportedModules(moduleId: number): ModuleSet {
         return this.transitions.modules[moduleId];
-    }
-
-    getTransitionWeight(fromModuleId: number, toModuleId: number): number {
-        return this.transitions.weights[fromModuleId][toModuleId];
     }
 }

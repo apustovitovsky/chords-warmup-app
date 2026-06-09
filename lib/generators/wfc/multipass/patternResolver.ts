@@ -78,9 +78,7 @@ export class PatternResolver<TValue = string> {
                 const modules = new ModuleSet(domain.modules.length);
 
                 for (const domainId of layout.items[slotIndex]) {
-                    for (const moduleId of domain.moduleIdsByDomainId[domainId]) {
-                        modules.add(moduleId);
-                    }
+                    modules.addSet(domain.modulesByDomainId[domainId]);
                 }
 
                 if (modules.empty) {
@@ -152,28 +150,15 @@ export class PatternResolver<TValue = string> {
         targetModules: ModuleSet
     ): EdgeTransitionData {
         const modules = this.createEmptyModuleSets(domain.modules.length);
-        const weights = this.createEmptyTransitionWeights(domain.modules.length);
 
         for (const moduleId of sourceModules) {
             const supported = modules[moduleId];
-            const moduleWeights = weights[moduleId];
-
-            for (const targetModuleId of targetModules) {
-                const weight = domain.getTransitionWeight(
-                    moduleId,
-                    targetModuleId
-                );
-
-                if (weight > 0) {
-                    supported.add(targetModuleId);
-                    moduleWeights[targetModuleId] = weight;
-                }
-            }
+            supported.addSet(domain.supportsByModuleId[moduleId]);
+            supported.enforce(targetModules);
         }
 
         return {
             modules,
-            weights,
         };
     }
 
@@ -182,16 +167,6 @@ export class PatternResolver<TValue = string> {
 
         for (let moduleId = 0; moduleId < moduleCount; moduleId++) {
             result[moduleId] = new ModuleSet(moduleCount);
-        }
-
-        return result;
-    }
-
-    private createEmptyTransitionWeights(moduleCount: number): number[][] {
-        const result: number[][] = [];
-
-        for (let moduleId = 0; moduleId < moduleCount; moduleId++) {
-            result[moduleId] = new Array(moduleCount).fill(0);
         }
 
         return result;

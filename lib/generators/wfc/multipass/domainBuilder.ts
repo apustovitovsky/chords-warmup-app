@@ -1,67 +1,55 @@
+import { ModuleSet } from "../runtime/moduleSet";
 import type { PatternCollection, PatternDefinition } from "./patternDefinition";
 
 export interface PatternModule<TValue = string> {
     id: number;
-    domainId: number;
     value: TValue;
 }
 
-interface ModuleBuildResult<TValue> {
-    modules: PatternModule<TValue>[];
-    moduleValueIds: number[];
-}
-
 export class Domain<TValue = string> {
+    private readonly domainIdByValue = new Map<TValue, number>();
+
     constructor(
         readonly domains: TValue[],
         readonly modules: PatternModule<TValue>[],
-        readonly moduleIdsByDomainId: number[][],
-        private readonly moduleValueIds: number[],
-        private readonly valueTransitionWeights: number[][]
-    ) { }
+        readonly modulesByDomainId: ModuleSet[],
+        readonly supportsByModuleId: ModuleSet[]
+    ) {
+        for (let domainId = 0; domainId < this.domains.length; domainId++) {
+            this.domainIdByValue.set(this.domains[domainId], domainId);
+        }
+    }
 
     getDomainId(domain: TValue): number {
-        const domainId = this.domains.indexOf(domain);
+        const domainId = this.domainIdByValue.get(domain);
 
-        if (domainId < 0) {
+        if (domainId === undefined) {
             throw new Error(`Unknown domain "${String(domain)}".`);
         }
 
         return domainId;
-    }
-
-    getTransitionWeight(fromModuleId: number, toModuleId: number): number {
-        const fromValueId = this.moduleValueIds[fromModuleId];
-        const toValueId = this.moduleValueIds[toModuleId];
-
-        return this.valueTransitionWeights[fromValueId]?.[toValueId] ?? 0;
     }
 }
 
 export class DomainBuilder<TValue = string> {
     build(collection: PatternCollection<TValue>): Domain<TValue> {
         const domains = this.createDomains(collection.patterns);
-        const values = this.createValues(collection.patterns);
-        const moduleResult = this.createModules(
+        const modules = this.createModules(collection.patterns);
+        const modulesByDomainId = this.createModulesByDomainId(
             collection.patterns,
             domains,
-            values
+            modules
         );
-        const moduleIdsByDomainId = this.createModuleIdsByDomainId(
-            domains,
-            moduleResult.modules
-        );
-        const valueTransitionWeights = this.createValueTransitionWeights(
+        const supportsByModuleId = this.createSupportsByModuleId(
             collection.patterns,
-            values
+            modules
         );
 
         return new Domain(
             domains,
-            moduleResult.modules,
-            moduleIdsByDomainId,
-            moduleResult.moduleValueIds,
-            valueTransitionWeights
+            modules,
+            modulesByDomainId,
+            supportsByModuleId
         );
     }
 
@@ -85,10 +73,10 @@ export class DomainBuilder<TValue = string> {
         return domains;
     }
 
-    private createValues(
+    private createModules(
         patterns: PatternDefinition<TValue>[]
-    ): TValue[] {
-        const values: TValue[] = [];
+    ): PatternModule<TValue>[] {
+        const modules: PatternModule<TValue>[] = [];
         const seen = new Set<TValue>();
 
         for (const pattern of patterns) {
@@ -98,91 +86,108 @@ export class DomainBuilder<TValue = string> {
                 }
 
                 seen.add(value);
-                values.push(value);
+                modules.push({
+                    id: modules.length,
+                    value,
+                });
             }
         }
 
-        return values;
+        return modules;
     }
 
-    private createModules(
+    private createModulesByDomainId(
         patterns: PatternDefinition<TValue>[],
         domains: TValue[],
-        values: TValue[]
-    ): ModuleBuildResult<TValue> {
-        const modules: PatternModule<TValue>[] = [];
-        const moduleValueIds: number[] = [];
+        modules: PatternModule<TValue>[]
+    ): ModuleSet[] {
+        const domainIdByValue = this.createIndex(domains);
+        const moduleIdByValue = this.createModuleIndex(modules);
+        const result = Array.from(
+            { length: domains.length },
+            () => new ModuleSet(modules.length)
+        );
 
         for (const pattern of patterns) {
             for (const domain of pattern.parentValues) {
-                const domainId = domains.indexOf(domain);
+                const domainId = domainIdByValue.get(domain);
+
+                if (domainId === undefined) {
+                    throw new Error(`Unknown domain "${String(domain)}".`);
+                }
+
+                const domainModules = result[domainId];
 
                 for (const value of pattern.values) {
-                    if (this.hasModule(modules, domainId, value)) {
-                        continue;
-                    }
-
-                    modules.push({
-                        id: modules.length,
-                        domainId,
-                        value,
-                    });
-                    moduleValueIds.push(values.indexOf(value));
+                    domainModules.add(this.getModuleId(moduleIdByValue, value));
                 }
             }
         }
 
-        return {
-            modules,
-            moduleValueIds,
-        };
-    }
-
-    private createModuleIdsByDomainId(
-        domains: TValue[],
-        modules: PatternModule<TValue>[]
-    ): number[][] {
-        const result = Array.from(
-            { length: domains.length },
-            () => [] as number[]
-        );
-
-        for (const module of modules) {
-            result[module.domainId].push(module.id);
-        }
-
         return result;
     }
 
-    private createValueTransitionWeights(
+    private createSupportsByModuleId(
         patterns: PatternDefinition<TValue>[],
-        values: TValue[]
-    ): number[][] {
+        modules: PatternModule<TValue>[]
+    ): ModuleSet[] {
+        const moduleIdByValue = this.createModuleIndex(modules);
         const result = Array.from(
-            { length: values.length },
-            () => new Array(values.length).fill(0)
+            { length: modules.length },
+            () => new ModuleSet(modules.length)
         );
 
         for (const pattern of patterns) {
             for (let index = 0; index < pattern.values.length - 1; index++) {
-                const fromValueId = values.indexOf(pattern.values[index]);
-                const toValueId = values.indexOf(pattern.values[index + 1]);
+                const fromModuleId = this.getModuleId(
+                    moduleIdByValue,
+                    pattern.values[index]
+                );
+                const toModuleId = this.getModuleId(
+                    moduleIdByValue,
+                    pattern.values[index + 1]
+                );
 
-                result[fromValueId][toValueId]++;
+                result[fromModuleId].add(toModuleId);
+                result[toModuleId].add(fromModuleId);
             }
         }
 
         return result;
     }
 
-    private hasModule(
-        modules: PatternModule<TValue>[],
-        domainId: number,
+    private getModuleId(
+        moduleIdByValue: Map<TValue, number>,
         value: TValue
-    ): boolean {
-        return modules.some((module) =>
-            module.domainId === domainId &&
-            module.value === value
-        );
+    ): number {
+        const moduleId = moduleIdByValue.get(value);
+
+        if (moduleId === undefined) {
+            throw new Error(`Unknown module value "${String(value)}".`);
+        }
+
+        return moduleId;
+    }
+
+    private createModuleIndex(
+        modules: PatternModule<TValue>[]
+    ): Map<TValue, number> {
+        const result = new Map<TValue, number>();
+
+        for (const module of modules) {
+            result.set(module.value, module.id);
+        }
+
+        return result;
+    }
+
+    private createIndex(values: TValue[]): Map<TValue, number> {
+        const result = new Map<TValue, number>();
+
+        for (let index = 0; index < values.length; index++) {
+            result.set(values[index], index);
+        }
+
+        return result;
     }
 }

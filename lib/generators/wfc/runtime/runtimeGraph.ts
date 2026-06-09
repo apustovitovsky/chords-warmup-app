@@ -9,15 +9,12 @@ export class RuntimeGraph {
         readonly moduleCapacity: number
     ) { }
 
-    calculateModuleTransitionWeight(nodeIndex: number, moduleId: number): number {
+    calculateModuleHealthWeight(nodeIndex: number, moduleId: number): number {
         let result = 0;
+        const node = this.nodes[nodeIndex];
 
-        for (const edge of this.edges[nodeIndex]) {
-            const targetNode = this.nodes[edge.targetNodeIndex];
-
-            for (const targetModuleId of targetNode.modules) {
-                result += edge.getTransitionWeight(moduleId, targetModuleId);
-            }
+        for (let edgeIndex = 0; edgeIndex < this.edges[nodeIndex].length; edgeIndex++) {
+            result += node.moduleHealth[edgeIndex][moduleId];
         }
 
         return result;
@@ -30,7 +27,7 @@ export class RuntimeGraph {
         for (const moduleId of node.modules) {
             result.set(
                 moduleId,
-                this.calculateModuleTransitionWeight(nodeIndex, moduleId)
+                this.calculateModuleHealthWeight(nodeIndex, moduleId)
             );
         }
 
